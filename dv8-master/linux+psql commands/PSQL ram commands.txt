@@ -1,0 +1,17 @@
+list spaces and sizes
+SELECT spcname, pg_size_pretty(pg_tablespace_size(spcname)) FROM pg_tablespace;
+
+
+list spacenames and locations
+select spcname, pg_tablespace_location(oid) from pg_tablespace;
+
+select relname from pg_class where reltablespace=(select oid from pg_tablespace where spcname = 'netjetts');
+
+see mounted filesystems 
+cat /proc/mounts
+
+clear caches
+sync && echo 3 > /proc/sys/vm/drop_caches
+
+sudo multipart command
+sudo sh -c "COMMAND"

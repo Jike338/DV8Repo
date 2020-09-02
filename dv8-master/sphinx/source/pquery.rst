@@ -1,0 +1,5 @@
+pquery
+======
+
+.. automodule:: pquery
+    :members:

@@ -1,0 +1,293 @@
+import sys
+import csv
+import json
+import psycopg2
+import datetime
+import time
+from psycopg2.extras import RealDictCursor
+
+# -- Configuration --
+SAMPLING_LIMIT = 4000 # ( in number of records )
+QUERY_TIMEOUT = 5000 # ( in milliseconds )
+# -------------------
+
+def parameterized_query(flight_id="", dept_aprt="", arr_aprt="", from_date="", to_date="", file_name="", single=""):
+	# Open database connection
+	# For JSON: #, cursor_factory=RealDictCursor)
+	db = psycopg2.connect(host="", database="netjets", user="tornado", password="spacetime")
+	c = db.cursor()
+
+	timeout_query = "SET statement_timeout = %s" % QUERY_TIMEOUT
+	c.execute(timeout_query)
+
+	query = "SELECT flight_id,dept_date_utc,dept_time_utc,dept_aprt,arr_date_utc,arr_time_utc,arr_aprt,lat,lng,alt,point_time FROM ramtemp"
+
+	# Validate form input
+	if single is not True:
+		if len(dept_aprt) == 0 and len(arr_aprt) == 0:
+			print "Query error: no airports specified"
+			return -1
+		if len(from_date) == 0 or len(to_date) == 0:
+			print "Query error: dates are not completely specified"
+			return -1
+
+	from_date_dt = datetime.datetime.strptime(from_date, "%m/%d/%Y")
+	to_date_dt = datetime.datetime.strptime(to_date, "%m/%d/%Y")
+	if to_date_dt < from_date_dt:
+		print "Query error: to_date before from_date"
+		return -1
+
+
+	# Filter on airport / direction, time of day, date range
+	where_conditions = []
+	if len(flight_id) > 0:		where_conditions.append(" flight_id = " + flight_id)
+	if len(dept_aprt) > 0: 		where_conditions.append(" dept_aprt = '" + dept_aprt +"'")
+	if len(arr_aprt) > 0:		where_conditions.append(" arr_aprt = '" + arr_aprt+ "'")
+	if len(from_date) > 0:
+		where_conditions.append(" dept_date_utc >= %s " % (from_date_dt.strftime("%Y%m%d")))
+		print "\n\n\n[%s]\n\n\n" % from_date_dt.strftime("%Y%m%d")
+	if len(to_date) > 0:		
+		where_conditions.append(" dept_date_utc <= %s " % (to_date_dt.strftime("%Y%m%d")))
+		print "\n\n\n[%s]\n\n\n" % to_date_dt.strftime("%Y%m%d")
+
+	if len(where_conditions) > 0:
+		query += " WHERE " + where_conditions[0]
+		for where_condition in where_conditions[1:]:
+			query += " AND "
+			query += where_condition
+
+	if single:
+		# Order individual flight by point_time
+		query += " ORDER BY point_time "
+	else:
+		# Randomly sample results
+		query += " ORDER BY random() LIMIT %s " % SAMPLING_LIMIT	
+
+	print "Executing '%s'..." % query
+	try:
+		c.execute(query)
+	except psycopg2.extensions.QueryCanceledError as e:
+		# Handle QueryCanceledError
+		print "Query failure: %s" % e
+		return -1
+
+	flights = []
+
+	print "Query complete: %d results." % c.rowcount
+
+	csvfile = open(file_name, "wb")
+	csvfile.write("flight_id,dept_date_utc,dept_time_utc,dept_aprt,arr_date_utc,arr_time_utc,arr_aprt,lat,lng,alt,point_time\n")
+	for flight in c:
+		for column in flight:
+			csvfile.write(str(column) + ",")
+		csvfile.write("\n")
+	csvfile.close()
+
+	print "Generated %s." % file_name
+
+	db.close()
+
+def next(flight_id="", dept_aprt="", arr_aprt="", from_date="", to_date="", file_name="", single=""):
+	# Open database connection
+	# For JSON: #, cursor_factory=RealDictCursor)
+	db = psycopg2.connect(host="", database="netjets", user="tornado", password="spacetime")
+	c = db.cursor()
+
+	timeout_query = "SET statement_timeout = %s" % QUERY_TIMEOUT
+	c.execute(timeout_query)
+
+	query = "SELECT flight_id,dept_date_utc,dept_time_utc,dept_aprt,arr_date_utc,arr_time_utc,arr_aprt,lat,lng,alt,point_time FROM ramtemp"
+
+	# Validate form input
+	if single is not True:
+		if len(dept_aprt) == 0 and len(arr_aprt) == 0:
+			print "Query error: no airports specified"
+			return -1
+		if len(from_date) == 0 or len(to_date) == 0:
+			print "Query error: dates are not completely specified"
+			return -1
+
+	from_date_dt = datetime.datetime.strptime(from_date, "%m/%d/%Y")
+	to_date_dt = datetime.datetime.strptime(to_date, "%m/%d/%Y")
+	if to_date_dt < from_date_dt:
+		print "Query error: to_date before from_date"
+		return -1
+
+
+	# Filter on airport / direction, time of day, date range
+	where_conditions = []
+	if len(flight_id) > 0:		where_conditions.append(" flight_id = " + flight_id)
+	if len(dept_aprt) > 0: 		where_conditions.append(" dept_aprt = '" + dept_aprt +"'")
+	if len(arr_aprt) > 0:		where_conditions.append(" arr_aprt = '" + arr_aprt+ "'")
+	if len(from_date) > 0:
+		where_conditions.append(" dept_date_utc >= %s " % (from_date_dt.strftime("%Y%m%d")))
+		print "\n\n\n[%s]\n\n\n" % from_date_dt.strftime("%Y%m%d")
+	if len(to_date) > 0:		
+		where_conditions.append(" dept_date_utc <= %s " % (to_date_dt.strftime("%Y%m%d")))
+		print "\n\n\n[%s]\n\n\n" % to_date_dt.strftime("%Y%m%d")
+
+	if len(where_conditions) > 0:
+		query += " WHERE " + where_conditions[0]
+		for where_condition in where_conditions[1:]:
+			query += " AND "
+			query += where_condition
+
+	if single:
+		# Order individual flight by point_time
+		query += " ORDER BY point_time "
+	else:
+		# Randomly sample results
+		query += " ORDER BY random() LIMIT %s " % SAMPLING_LIMIT	
+
+	print "Executing '%s'..." % query
+	try:
+		c.execute(query)
+	except psycopg2.extensions.QueryCanceledError as e:
+		# Handle QueryCanceledError
+		print "Query failure: %s" % e
+		return -1
+
+	flights = []
+
+	print "Query complete: %d results." % c.rowcount
+
+	csvfile = open(file_name, "wb")
+	csvfile.write("flight_id,dept_date_utc,dept_time_utc,dept_aprt,arr_date_utc,arr_time_utc,arr_aprt,lat,lng,alt,point_time\n")
+	for flight in c:
+		for column in flight:
+			csvfile.write(str(column) + ",")
+		csvfile.write("\n")
+	csvfile.close()
+
+	print "Generated %s." % file_name
+
+	db.close()
+
+
+def flights(flight_id="", dept_aprt="", arr_aprt="", from_date="", to_date="", file_name="", table_name=""):
+	# Open database connection
+	db = psycopg2.connect(host="", database="netjets", user="tornado", password="spacetime")
+	c = db.cursor()
+
+	timeout_query = "SET statement_timeout = %s" % QUERY_TIMEOUT
+	c.execute(timeout_query)
+
+	query = "select flight_id, dept_aprt, dept_date_utc, dept_time_utc, arr_aprt, arr_date_utc, arr_time_utc, t1.lat, t1.lng, t2.lat, t2.lng from %s t0, airports t1, airports t2 where dept_aprt = t1.iata and arr_aprt = t2.iata" % table_name
+	print query
+
+	# Validate form input
+	if len(dept_aprt) == 0 and len(arr_aprt) == 0:
+		print "Query error: no airports specified"
+		return -1
+	if len(from_date) == 0 or len(to_date) == 0:
+		print "Query error: dates are not completely specified"
+		return -1
+
+	from_date_dt = datetime.datetime.strptime(from_date, "%m/%d/%Y")
+	to_date_dt = datetime.datetime.strptime(to_date, "%m/%d/%Y")
+	if to_date_dt < from_date_dt:
+		print "Query error: to_date before from_date"
+		return -1
+
+	# Filter on airport / direction, time of day, date range
+	where_conditions = []
+	if len(flight_id) > 0:		where_conditions.append(" flight_id = " + flight_id)
+	if len(dept_aprt) > 0: 		where_conditions.append(" dept_aprt = '" + dept_aprt +"'")
+	if len(arr_aprt) > 0:		where_conditions.append(" arr_aprt = '" + arr_aprt+ "'")
+	if len(from_date) > 0:
+		where_conditions.append(" dept_date_utc >= %s " % (from_date_dt.strftime("%Y%m%d")))
+		print "\n\n\n[%s]\n\n\n" % from_date_dt.strftime("%Y%m%d")
+	if len(to_date) > 0:		
+		where_conditions.append(" dept_date_utc <= %s " % (to_date_dt.strftime("%Y%m%d")))
+		print "\n\n\n[%s]\n\n\n" % to_date_dt.strftime("%Y%m%d")
+
+	if len(where_conditions) > 0:
+		query += " WHERE " + where_conditions[0]
+		for where_condition in where_conditions[1:]:
+			query += " AND "
+			query += where_condition
+
+	# Randomly sample results
+	query += " ORDER BY random() LIMIT %s " % SAMPLING_LIMIT	
+
+	print "Executing '%s'..." % query
+	try:
+		c.execute(query)
+	except psycopg2.extensions.QueryCanceledError as e:
+		# Handle QueryCanceledError
+		print "Query failure: %s" % e
+		return -1
+
+	flights = []
+
+	print "Query complete: %d results." % c.rowcount
+
+	csvfile = open(file_name, "wb")
+	csvfile.write("flight_id,dept_aprt,dept_date_utc,dept_time_utc,arr_aprt,arr_date_utc,arr_time_utc,lat,lng,lat2,lng2\n")
+	for flight in c:
+		for column in flight:
+			csvfile.write(str(column) + ",")
+		csvfile.write("\n")
+	csvfile.close()
+
+	print "Generated %s." % file_name
+
+	db.close()
+
+def netjets_multi(file_name=""):
+	# Open database connection
+	db = psycopg2.connect(host="", database="netjets", user="tornado", password="spacetime")
+	c = db.cursor()
+
+	query = "select flight_id, dept_aprt, dept_date_utc, dept_time_utc, arr_aprt, arr_date_utc, arr_time_utc, t1.lat, t1.lng, t2.lat, t2.lng from netjets_dflights t0, airports t1, airports t2 where dept_aprt = t1.iata and arr_aprt = t2.iata"
+
+	print "Executing '%s'..." % query
+	try:
+		c.execute(query)
+	except psycopg2.extensions.QueryCanceledError as e:
+		# Handle QueryCanceledError
+		print "Query failure: %s" % e
+		return -1
+
+	print "Query complete: %d results." % c.rowcount
+
+	csvfile = open(file_name, "wb")
+	csvfile.write("flight_id,dept_aprt,dept_date_utc,dept_time_utc,arr_aprt,arr_date_utc,arr_time_utc,lat,lng,lat2,lng2\n")
+	for flight in c:
+		for column in flight:
+			csvfile.write(str(column) + ",")
+		csvfile.write("\n")
+	csvfile.close()
+
+	print "Generated %s." % file_name
+
+	db.close()
+
+def points(flight_id="", file_name="", table_name=""):
+	# Open database connection
+	db = psycopg2.connect(host="", database="netjets", user="tornado", password="spacetime")
+	c = db.cursor()
+
+	query = "SELECT * FROM %s WHERE flight_id = %s ORDER BY point_time" % (table_name, flight_id)
+
+	print "Executing '%s'..." % query
+	try:
+		c.execute(query)
+	except psycopg2.extensions.QueryCanceledError as e:
+		# Handle QueryCanceledError
+		print "Query failure: %s" % e
+		return -1
+
+	print "Query complete: %d results." % c.rowcount
+
+	csvfile = open(file_name, "wb")
+	csvfile.write("flight_id,point_time,lat,lng,alt,ground")
+	for flight in c:
+		for column in flight:
+			csvfile.write(str(column) + ",")
+		csvfile.write("\n")
+	csvfile.close()
+
+	print "Generated %s." % file_name
+
+	db.close()

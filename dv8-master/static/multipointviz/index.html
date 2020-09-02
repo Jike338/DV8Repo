@@ -1,0 +1,3524 @@
+<html>
+  <!DOCTYPE html>
+  <head>
+    <meta charset="utf-8">
+    <title>Flights Visualizer</title>
+    <!-- For leaflet -->
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src='https://api.mapbox.com/mapbox.js/v2.2.3/mapbox.js'></script>
+    <script type="text/javascript" src="{{ static_url('multipointviz/underscore-min.js') }}" charset="utf-8"></script>
+
+
+    <link href='https://api.mapbox.com/mapbox.js/v2.2.3/mapbox.css' rel='stylesheet' />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
+
+	<script src="{{ static_url('js/Animator.js') }}"></script>
+	<script src="{{ static_url('js/Incrementer.js') }} "></script>
+	<script type="text/javascript" src="{{ static_url('src/waypoints.js') }}"></script>
+
+
+
+
+	<script src="{{ static_url('multipointviz/crossfilter.v1.min.js') }}" charset="utf-8"></script>
+    <style>
+
+    @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz:400,700);
+
+	html,body
+	{
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+    overflow-x: hidden;
+	overflow-y: hidden;
+	}
+
+    body {
+    font-family: "Yanone Kaffeesatz";
+     margin: 10 px auto;
+     width: 100%;
+    }
+
+    /* HTML Page Layout - Start */
+
+	a, button, .button {
+		pointer-events:auto;
+	}
+	#virtualKeyboard {
+		pointer-events:none;
+		bottom:5%
+	}
+
+	.center_lr { left: 50%; transform: translate(-50%, 0%); }
+	.center_tb { top: 50%; transform: translate(0%, -50%); }
+
+	pre {
+		display: inline;
+	}
+
+    #pageheader {
+        background-color:black;
+		opacity: .5;
+        color:white;
+        text-align:center;
+        padding:5px;
+    }
+    #pagenav {
+        height:90%;
+        width:360px;
+        float:left;
+		overflow-y: scroll;
+		overflow-x: hidden;
+    }
+    #pagesection {
+        width:68%;
+        float:left;
+        padding:10px;
+    }
+    #pagefooter {
+		pointer-events: none;
+        background-color:black;
+		opacity: .8;
+        color:white;
+        clear:both;
+        text-align:center;
+        padding:5px;
+        height: 3%;
+		width:100%;
+
+		position:absolute;
+		bottom:0px;
+    }
+
+    /* HTML Page Layout - End */
+
+	#summary {
+		position: absolute;
+		bottom: 5%;
+		left: 375px;
+	}
+
+	#summary2 {
+		position: absolute;
+		bottom: 5%;
+		right: 3%;
+  }
+
+  /*#cluster_summary{*/
+    /*position: absolute;*/
+		/*bottom: 20%;*/
+		/*right: 3%;*/
+  /*}*/
+
+    #map {
+      width:100%;
+      height: 100%;
+      border-style: solid;
+    }
+
+    #heatmap {
+      width:100%;
+      height: 100%;
+      border-style: solid;
+    }
+
+    .ghbtns {
+      position: relative;
+      top: 4px;
+      margin-left: 5px;
+    }
+
+
+    #body {
+      position: relative;
+    }
+
+    h1 {
+      font-size: 96px;
+      margin-top: .3em;
+      margin-bottom: 0;
+    }
+
+    h1 + h2 {
+      margin-top: 0;
+    }
+
+    h2 {
+      font-weight: 400;
+      font-size: 28px;
+    }
+
+    h1, h2 {
+      font-family: "Yanone Kaffeesatz";
+      text-rendering: optimizeLegibility;
+    }
+
+    #body > p {
+      line-height: 1.5em;
+      width: 640px;
+      text-rendering: optimizeLegibility;
+    }
+
+    #charts {
+      /* padding: 5px; */
+	  background-color:rgba(200, 200, 200, .5);
+	  height: 100%;
+    }
+
+    .chart {
+      display: inline-block;
+      height: 5%;
+      margin-bottom: 8%;
+      margin-left: 5%;
+      margin-right: 5%;
+      margin-top: 8%;
+    }
+
+    .reset {
+      padding-left: 1em;
+      font-size: smaller;
+      color: black;
+	  pointer-events: auto;
+	  opacity:.9;
+	  }
+
+	.chart-header{
+		font-size:130%
+	  }
+
+	.playpause{
+	  display:inline;
+	  font-size:180%
+    }
+	input[type="checkbox"] {
+		pointer-events:auto;
+	}
+
+    .background.bar {
+      fill: #ccc;
+    }
+
+    .foreground.bar {
+      fill: steelblue;
+    }
+
+    .axis path, .axis line {
+      fill: none;
+      stroke: #000;
+      shape-rendering: crispEdges;
+    }
+
+    .axis text {
+      font: 10px sans-serif;
+    }
+
+    .brush rect.extent {
+      fill: steelblue;
+      fill-opacity: .125;
+    }
+
+
+    .brush .resize path {
+      //fill: #eee;
+      stroke: #666;
+    }
+
+    #hour-chart,
+    #delay-chart,
+    #date-chart,
+    #pointtime-chart {
+
+      width: 100%;
+      min-height: 175px;
+    }
+	#hour-chart{ margin-top:5px; }
+
+	.leaflet-right .leaflet-control {
+		margin-right: 35;
+	}
+	.leaflet-top {
+		margin-top: 300;
+	}
+
+    .inputForm {
+		text-align: center;
+		background-color: lightgrey;
+		opacity: 1;
+		margin-left: 0px;
+		margin-right: 0px;
+	}
+
+	#flight-list{
+		max-height: 60%;
+		width: 100%;
+		overflow-y: scroll;
+		overflow-x: hidden;
+		font-size: 10pt;
+		background-color: rgba(200, 200, 200, .5);
+	}
+	#lists{
+		display: none;
+		max-height: 60%;
+		position: relative;
+	}
+	.flight{
+		font-size: 9pt;
+		display: table;
+	}
+	.date{ display: table; }
+
+	.alert-warning{background-color:#f60833;border-color:#000000}
+	.alert-warning hr{border-top-color:#f7e1b5}
+	.alert{padding:1px;border:1px solid transparent;border-radius:4px}.alert h4{margin-top:0;color:inherit}
+
+	.info {
+		padding: 6px 8px;
+		font: 14px/16px Arial, Helvetica, sans-serif;
+		background: rgba(255,255,255,0.8);
+		box-shadow: 0 0 15px rgba(0,0,0,0.2);
+		border-radius: 5px;
+		}
+
+	#key {
+		position:absolute;
+		display: table;
+		background:rgba(255,255,255,0.8);;
+		bottom:30px;
+		left:625px;
+	}
+	.legend { list-style: none; padding-left:20px; padding-right:20px;}
+	.legend li { float: left; margin-right: 10px; }
+	.color_key{
+		border: 1px solid #ccc; float: left; width: 12px; height: 12px; margin: 2px;
+	}
+
+	.btn-group-vertical{ width:140px; }
+    </style>
+	<link rel="stylesheet" type="text/css" href="{{ static_url('bootstrap/css/bootstrap.min.css') }}">
+
+	<!-- loading icon -->
+	<style type="text/css"> .uil-spin-css {
+  background: none;
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+width: 100%;
+@-webkit-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@-webkit-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@-moz-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@-ms-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@-moz-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@-webkit-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@-o-keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+@keyframes uil-spin-css {
+  0% {
+    opacity: 1;
+    -ms-transform: scale(1.5);
+    -moz-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+    -o-transform: scale(1.5);
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0.1;
+    -ms-transform: scale(1);
+    -moz-transform: scale(1);
+    -webkit-transform: scale(1);
+    -o-transform: scale(1);
+    transform: scale(1);
+  }
+}
+.uil-spin-css > div {
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  margin-top: 4px;
+  position: absolute;
+}
+.uil-spin-css > div > div {
+  width: 100%;
+  height: 100%;
+  border-radius: 15px;
+  background: #000;
+}
+.uil-spin-css > div:nth-of-type(1) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0s;
+  -moz-animation-delay: 0s;
+  -webkit-animation-delay: 0s;
+  -o-animation-delay: 0s;
+  animation-delay: 0s;
+}
+.uil-spin-css > div:nth-of-type(1) {
+  -ms-transform: translate(84px, 84px) rotate(45deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(45deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(45deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(45deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(45deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(2) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.12s;
+  -moz-animation-delay: 0.12s;
+  -webkit-animation-delay: 0.12s;
+  -o-animation-delay: 0.12s;
+  animation-delay: 0.12s;
+}
+.uil-spin-css > div:nth-of-type(2) {
+  -ms-transform: translate(84px, 84px) rotate(90deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(90deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(90deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(90deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(90deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(3) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.25s;
+  -moz-animation-delay: 0.25s;
+  -webkit-animation-delay: 0.25s;
+  -o-animation-delay: 0.25s;
+  animation-delay: 0.25s;
+}
+.uil-spin-css > div:nth-of-type(3) {
+  -ms-transform: translate(84px, 84px) rotate(135deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(135deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(135deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(135deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(135deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(4) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.37s;
+  -moz-animation-delay: 0.37s;
+  -webkit-animation-delay: 0.37s;
+  -o-animation-delay: 0.37s;
+  animation-delay: 0.37s;
+}
+.uil-spin-css > div:nth-of-type(4) {
+  -ms-transform: translate(84px, 84px) rotate(180deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(180deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(180deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(180deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(180deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(5) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.5s;
+  -moz-animation-delay: 0.5s;
+  -webkit-animation-delay: 0.5s;
+  -o-animation-delay: 0.5s;
+  animation-delay: 0.5s;
+}
+.uil-spin-css > div:nth-of-type(5) {
+  -ms-transform: translate(84px, 84px) rotate(225deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(225deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(225deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(225deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(225deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(6) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.62s;
+  -moz-animation-delay: 0.62s;
+  -webkit-animation-delay: 0.62s;
+  -o-animation-delay: 0.62s;
+  animation-delay: 0.62s;
+}
+.uil-spin-css > div:nth-of-type(6) {
+  -ms-transform: translate(84px, 84px) rotate(270deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(270deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(270deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(270deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(270deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(7) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.75s;
+  -moz-animation-delay: 0.75s;
+  -webkit-animation-delay: 0.75s;
+  -o-animation-delay: 0.75s;
+  animation-delay: 0.75s;
+}
+.uil-spin-css > div:nth-of-type(7) {
+  -ms-transform: translate(84px, 84px) rotate(315deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(315deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(315deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(315deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(315deg) translate(70px, 0);
+}
+.uil-spin-css > div:nth-of-type(8) > div {
+  -ms-animation: uil-spin-css 1s linear infinite;
+  -moz-animation: uil-spin-css 1s linear infinite;
+  -webkit-animation: uil-spin-css 1s linear infinite;
+  -o-animation: uil-spin-css 1s linear infinite;
+  animation: uil-spin-css 1s linear infinite;
+  -ms-animation-delay: 0.87s;
+  -moz-animation-delay: 0.87s;
+  -webkit-animation-delay: 0.87s;
+  -o-animation-delay: 0.87s;
+  animation-delay: 0.87s;
+}
+.uil-spin-css > div:nth-of-type(8) {
+  -ms-transform: translate(84px, 84px) rotate(360deg) translate(70px, 0);
+  -moz-transform: translate(84px, 84px) rotate(360deg) translate(70px, 0);
+  -webkit-transform: translate(84px, 84px) rotate(360deg) translate(70px, 0);
+  -o-transform: translate(84px, 84px) rotate(360deg) translate(70px, 0);
+  transform: translate(84px, 84px) rotate(360deg) translate(70px, 0);
+}
+ </style>
+
+	<!-- Fix some bootstrap stuff -->
+	<style>
+		pre {
+			display: inline;
+			padding: 1px;
+			font-size: 14px;
+			background-color:rgba(255,255,255,.5);
+		}
+		body {
+			color: #000000
+		}
+		.alert{margin-bottom:2px; width:100%;}
+	</style>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+
+	<link rel="stylesheet" href="{{static_url('js/onscreenkeyboard-master/css/jsKeyboard.css')}}" />
+	<script type="text/javascript" src="{{ static_url('js/onscreenkeyboard-master/jsKeyboard.js') }}"></script>
+	<script type="text/javascript" src="{{ static_url('js/onscreenkeyboard-master/js/main.js') }}"></script>
+
+	<!-- the order here matters -->
+	<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
+	<script type="text/javascript" src="{{ static_url('js/FreeDrawJs/leaflet-freedraw.web.js') }}" charset="utf-8"></script>
+  <script src="{{ static_url('multipointviz/dist/leaflet-heat.js') }}" charset="utf-8"></script>
+  <script src="{{ static_url('multipointviz/clusterfck.js') }}" charset="utf-8"></script>
+
+
+
+
+
+
+</head>
+<body style="position:relative; z-index:-3">
+  <div id="map" style="position:absolute; z-index:-1"></div>
+  <div id="heatmap" style="position:absolute; z-index:-2"></div>
+  <div id="virtualKeyboard" style="position:absolute; display:none; z-index:3"></div>
+  <div id='loading_icon' style='display:none'>Loading</div>
+
+ <fieldset class="inputForm">
+   <form class="pure-form" action="/multi" method="get" style="display:inline;">
+		<span>
+			{%if error%}
+			<span class="alert alert-warning" style="float:left">
+				<strong>Error: </strong> {{error}}
+			</span>
+			{%end%}
+			<input name="airline" type="text" placeholder="Airline ICAO ID" size="20" value="{{airline}}"/>
+		</span>
+		<span>
+			<input name="aircraft" type="text" placeholder="Aircraft Type" size="20" value="{{aircraft}}"/>
+			<span style="font-size:50%; text-decoration-line: underline;" title="Use % as a placeholder for any string"> REGEX?</Span>
+		</span>
+        <span id="dept_aprt_p">
+        	<input name="from_aprt" type="text" placeholder="Departure Airport" size="15" id="from_aprt" value="{{dept_aprt}}"> &nbsp;
+			<input type='hidden' value='off' name='dept_nearby'>
+        	<!--<input name="dept_nearby" type="checkbox"> Consider nearby airports to departure-->
+			<!--<button name="add_dept" type="button" onclick="addDeptAprt();">Add Another Departing Airport</button>-->
+        </span>
+		<span id='switch_span'>
+			<a id="switchBut" onclick="switch_dept_arr()" class="btn btn-default">&harr;</a>
+		</span>
+        <span id="arr_aprt_p">
+			<input name="to_aprt" type="text" placeholder="Arrival Airport" size="15" id="to_aprt" value="{{arr_aprt}}"> &nbsp;
+			<!--<input type='hidden' value='off' name='arr_nearby'> -->
+        	<!--<input name="arr_nearby" type="checkbox"> Consider nearby airports to arrival-->
+			<!--<button name="add_arr" type="button" onclick="addArrAprt();">Add Another Arriving Airport</button>-->
+        </span>
+        <span>
+        	<input name = "from_date" type="text" placeholder="Begin Date" value="{{from_date}}" size = "20" class="datepicker"> &nbsp;
+			<input name = "to_date" id="end_date" type="text" placeholder="End Date"  value="{{to_date}}" size="20" class="datepicker">
+        </span>
+		<span>
+        	<button type="submit" id="submitBut" name="mode" value="points" class="btn btn-default">Visualize Points</button>
+        </span>
+	  </form>
+	  <form method="link" action="/" style="display:inline;">
+        	<button type="submit" id="adv_search" class="btn btn-primary" style="float:right">Advanced Search</button>
+       </form>
+ </fieldset>
+
+  <div id="pageheader">
+      <span id="active">-</span> of <span id="total">-</span> records selected (for <span id="totalflights">-</span> flights).
+  </div>
+  <div id="topRight" style="float:right">
+    <div class="btn-group-vertical">
+		<button onclick="javascript:switchMaps()" id="switchMaps" class="btn btn-success">Switch Maps</Button>
+		<button onclick="javascript:switchColor()" id="switchColor" class="btn btn-success">B/W Map</button>
+		<button onclick="javascript:hideList()" id="hideList" class="btn btn-success">Show List</button>
+		<button onclick="javascript:showOnlyPlan()" id="ShowOnlyPlan" class="btn btn-success">Only Plan Route</button>
+		<!--{%if is_iterated%}
+		<button onclick="javascript:iterateQuery();" id="itButton" class="btn btn-danger" style="display:none" >Iterate</button>
+		{%else%}
+		<button onclick="javascript:iterateQuery();" id="itButton" class="btn btn-danger">Iterate</button>
+		{%end%}-->
+		<button onclick="javascript:switch_zoom_query();" id="zoom_query_button" class="btn btn-danger">Zoom Query: OFF</button>
+		<button onclick="javascript:switch_freeDraw();" id="freeDraw_button" class="btn">Toggle Drawing</button>
+		<button onclick="javascript:clearSelection();" id="clearSelection_button" style="display:none" class="btn">Clear Selection</button>
+
+	</div>
+  </div>
+  <div id="pagenav"> <!-- Charts -->
+    <a name="anchor-charts"></a>
+    <fieldset id="charts">
+		Cumulative Animation: <input type="checkbox" id="cummulative_checkbox" name="cummulative_animation" style='transform: scale(1.5);'/>
+      <div id="hour-chart" class="chart">
+		<div class='chart-header'>
+			<div class="title" style="display:inline">Departure Time</div>
+			<div class="playpause"><a href="javascript:animator.startAnimate(0)">| &#9654 |</a> &nbsp <a href="javascript:animator.pause(0)">&#10074&#10074</a></div>
+		</div>
+		<div>
+			Inc: <input type="text" size="1" id="inc0" value="1"/>
+			<button type="button" onclick="javascript:incrementValue('inc0', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('inc0', -1)" class="btn btn-default">-</Button>
+			Width: <input type="text" size="1" id="width0" value="1"/>
+			<button type="button" onclick="javascript:incrementValue('width0', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('width0', -1)" class="btn btn-default">-</Button>
+		</div>
+      </div>
+      <div id="delay-chart" class="chart">
+		<div class='chart-header'>
+			<div class="title" style="display:inline">Arrival Time</div>
+			<div class="playpause"><a href="javascript:animator.startAnimate(1)">| &#9654 |</a> &nbsp <a href="javascript:animator.pause(1)">&#10074&#10074</a></div>
+		</div>
+		<div>
+			Inc: <input type="text" size="1" id="inc1" value="1">
+			<button type="button" onclick="javascript:incrementValue('inc1', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('inc1', -1)" class="btn btn-default">-</Button>
+			Width: <input type="text" size="1" id="width1" value="1">
+			<button type="button" onclick="javascript:incrementValue('width1', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('width1', -1)" class="btn btn-default">-</Button>
+		</div>
+      </div>
+      <div id="pointtime-chart" class="chart">
+		<div class='chart-header'>
+			<div class="title" style="display:inline">Hour</div>
+			<div class="playpause"><a href="javascript:animator.startAnimate(2)">| &#9654 |</a> &nbsp <a href="javascript:animator.pause(2)">&#10074&#10074</a></div>
+		</div>
+		<div>
+			Inc: <input type="text" size="1" id="inc2" value="1">
+			<button type="button" onclick="javascript:incrementValue('inc2', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('inc2', -1)" class="btn btn-default">-</Button>
+			Width: <input type="text" size="1" id="width2" value="1">
+			<button type="button" onclick="javascript:incrementValue('width2', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('width2', -1)" class="btn btn-default">-</Button>
+		</div>
+      </div>
+      <div id="date-chart" class="chart">
+		<div class='chart-header'>
+			<div class="title" style="display: inline;">Date</div>
+			<div class="playpause"><a href="javascript:animator.startAnimate(-1)">| &#9654 |</a> &nbsp <a href="javascript:animator.pause(-1)">&#10074&#10074</a></div>
+		</div>
+		<div>
+			Inc: <input type="text" size="1" id="date_inc" value="1">
+			<button type="button" onclick="javascript:incrementValue('date_inc', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('date_inc', -1)" class="btn btn-default">-</Button>
+			Width: <input type="text" size="1" id="date_width" value="1">
+			<button type="button" onclick="javascript:incrementValue('date_width', 1)" class="btn btn-default">+</Button>
+			<button type="button" onclick="javascript:incrementValue('date_width', -1)" class="btn btn-default">-</Button>
+		</div>
+      </div>
+    </fieldset>
+  </div>
+
+	<div id="lists" style="float:right;">
+		<fieldset id="flight-list" class="list">
+			<span style="width=70%;font-size: 20pt;"><b>Flights</b></span>
+			<button type="button" onclick="javascript:createCSV()" style='float:right;' class="btn btn-warning">Generate CSV</Button><br>
+			<pre><b>DEP. </b></pre><pre><b>   DATE    </b></pre><pre><b>ARR. </b></pre><pre><b>LINK</b></pre>
+		</fieldset>
+	</div>
+
+
+	 <div id="color_dropdown" class="dropdown" style="display:inline">
+	  <button class="btn btn-warning dropdown-toggle" type="button" data-toggle="dropdown">Color Coding <span class='caret'></span></button>
+	  <ul class="dropdown-menu">
+		<li><a onclick="javascript:color_scheme=0; renderAll_Loading();">Alt</a></li>
+		<li><a onclick="javascript:color_scheme=1; renderAll_Loading();">Speed</a></li>
+		<li><a onclick="javascript:color_scheme=2; renderAll_Loading();">Airline</a></li>
+		<li><a onclick="javascript:color_scheme=3; renderAll_Loading();">Aircraft</a></li>
+		<li><a onclick="javascript:color_scheme=4; renderAll_Loading();">Weekday</a></li>
+		<li><a onclick="javascript:color_scheme=5; renderAll_Loading();">Dept Aprt</a></li>
+		<li><a onclick="javascript:color_scheme=6; renderAll_Loading();">Arr Aprt</a></li>
+		<li><a onclick="javascript:color_scheme=7; renderAll_Loading();">Alt Diff (Thousand Feet)</a></li>
+		<li><a onclick="javascript:color_scheme=8; renderAll_Loading();">Alt Diff (Hundred Feet)</a></li>
+    <li><a onclick="javascript:color_scheme=9; renderAll_Loading(); cluster_draw=true;">Cluster (Python)</a></li>
+    <li><a onclick="javascript:color_scheme=10; renderAll_Loading(); cluster_draw_javascript=true;">Cluster (JavaScript)</a></li>
+	  </ul>
+	</div>
+  <div id="pagefooter">
+      <p>Ohio State University</p>
+  </div>
+
+  <!--<div id = "cluster_summary" class="info" style="...">-->
+	  <!--<span id ="cluster_stats"></span>-->
+  <!--</div>-->
+
+  <div id = "summary" class="info" style="...">
+	  <span id ="stats"></span>
+  </div>
+
+  <div id = "summary2" class="info" style="...">
+  <span id ="stats2"></span>
+  </div>
+
+  <div id="key" class="well" style="position:absolute">
+	<ul id = "legend" class="legend">
+	</ul>
+  </div>
+  <iframe id="dl_frame" style="display:none;"></iframe>
+</body>
+
+
+<!-- Helper Functions -->
+	<script>
+
+	function tuple_reverse_order_compare(t1, t2){
+		return t2[0] - t1[0];
+	}
+
+	function parseDate(d) {
+      return new Date(
+          d.substring(0, 4),
+          d.substring(4, 6)-1,
+          d.substring(6, 8));
+    }
+
+    function parseHour(d) {
+      return (parseInt(d.substring(0,2)));
+    }
+
+	function showDate(d) {
+      return d.substring(4, 6)+"/"+d.substring(6, 8)+"/"+d.substring(0, 4);
+    }
+
+	function create_loading_icon(){
+		$('#loading_icon').html('<div class="uil-spin-css center_lr center_tb" style="-webkit-transform:scale(0.6); position:absolute;"><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div></div>')
+		console.log('loading...');
+	}
+
+	function remove_loading_icon(){
+
+		$('#loading_icon').html('');
+		console.log('done loading');
+
+  }
+
+  function isFloat(n){
+    return Number(n) === n && n % 1 !== 0;
+  }
+
+    function toRad(deg)
+    {
+        if(typeof deg === 'string'){
+          deg = parseFloat(deg);
+        }
+        var rad = deg * Math.PI / 180;
+        return rad;
+    }
+
+    function distance(lat1, lng1, lat2, lng2)
+    {
+        var dept_lat_rad = toRad(lat1);
+        var dept_lng_rad = toRad(lng1);
+        var arr_lat_rad = toRad(lat2);
+        var arr_lng_rad = toRad(lng2);
+        var earth_radius = 3440;
+        var d = Math.acos(Math.cos(dept_lat_rad)*Math.cos(dept_lng_rad)*Math.cos(arr_lat_rad)*Math.cos(arr_lng_rad) + Math.cos(dept_lat_rad)*Math.sin(dept_lng_rad)*Math.cos(arr_lat_rad)*Math.sin(arr_lng_rad) + Math.sin(dept_lat_rad)*Math.sin(arr_lat_rad)) * earth_radius;
+        return Math.round(d);
+    }
+
+	</script>
+
+
+<script src="{{static_url('js/leaflet-control-boxzoom.js')}}"></script>
+<link rel="stylesheet" href="{{static_url('css/leaflet-control-boxzoom.css')}}"/>
+
+<script src="{{ static_url('multipointviz\d3.v3.min.js') }}" charset="utf-8"></script>
+
+
+
+<!-- on load  -->
+<script>
+
+
+ //$(document).ready(function() {
+//	 $("input").click(function () {
+//		document.getElementById('virtualKeyboard').style.display = 'block';
+//	});
+
+</script>
+
+<!-- GLOBAL VARIABLES -->
+	<script>
+	//toggles ---------------
+	var listShown = false;
+	var mapShown = true;
+	var zoom_query = false;
+	var freeDraw_on = false;
+	var onlyPlan = 0;
+
+	var start_time_js = 0;
+	var end_time_js = 0;
+	var start_time_py = 0;
+	var end_time_py = 0;
+	var da = new Date();
+
+	//constants for freeDraw -----
+	var NONE = 0
+	var ALL = 15
+
+	//for color coding ------------
+	var NUM_COLORS = 20;
+  var color_scheme = 0;
+  var cluster_draw = false;
+	//0 = alt, 1 = speed, 2 = airline, 3 = aircraft, 4 = day of week, 5 = dept aprt, 6 = arr aprt
+	var max_alt = -1;
+	var max_speed = -1, min_speed = 99999999;
+	var airline_counts = new Map()
+	var aircraft_counts = new Map();
+	var dept_counts = new Map();
+	var arr_counts = new Map();
+	var cluster_counts = new Map();
+	var airline_list = [];
+	var aircraft_list = [];
+	var dept_list = [];
+	var arr_list = [];
+	var cluster_list = [];
+	var top_airlines = new Map();
+	var top_aircraft = new Map();
+	var top_dept_prts = new Map();
+	var top_arr_prts = new Map();
+	var top_clusters = new Map();
+	var added_is = new Set();
+	var top_days = new Map([['Sunday', 0], ['Monday', 1], ['Tuesday', 2], ['Wednesday', 3], ['Thursday', 4], ['Friday', 5], ['Saturday', 6]]);
+	var num_to_day = new Map([[0, 'Sunday'], [1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday']]);
+
+	//map vars --------------------
+	var x_global;
+	var flight;
+	var layerp;
+	var map, heatmap;
+	var heat = L.heatLayer();
+	var freeDraw = new FreeDraw();
+	heat.setOptions({max: 999, minOpacity: 0.7, radius: 15});
+	var mapboxAccess = 'pk.eyJ1IjoiYmVocm9vem9taWR2YXIiLCJhIjoiY2lpOTJneGpyMDAyNXZ1a29kZWN0cXk2ZiJ9.zGrpksooywrH3DjawX9u5w';
+
+	//charts and lists -------------
+	var charts;
+	var chart;
+	var list;
+
+	//info box ----------------------
+	var info = L.control({position:'bottomright'}); //info box when points are selected
+
+	//plan route
+	var plan_route = 1;
+	var route;
+
+	//dates -----------------------
+	var beginDate;
+	var endDateAr = document.getElementById("end_date").value.split("/");
+	var tempDate = parseDate(endDateAr[2] + ("0" + endDateAr[0]).slice(-2) + ("0" + endDateAr[1]).slice(-2));
+	var endDate = new Date(tempDate); //the internet told me to do this
+	endDate.setDate(endDate.getDate() + 1);
+	tempDate = null;
+	endDateAr = null;
+
+	//data and dimensions -----------------------------
+	var all;
+	//dimensions
+	var fidDimension;
+	var fidGrouping;
+    // departure time
+    var timeDimension;
+	var hourGrouping;
+    // arrival time
+    var timeArrDimension;
+	var hourArrGrouping;
+    // point_time grouping
+    var point_timeDimension;
+	var point_timeGrouping;
+	//fid then time
+	var fid_timeDimension;
+    // departure date
+    var dateDimension;
+	var dateGrouping;
+    var allDim;
+
+  var filtered_set = new Set();
+  var fid_lat_lng_map = new Map();
+
+	// Various formatters.
+    var formatNumber = d3.format(",d"),
+        formatChange = d3.format("+,d"),
+        formatDate = d3.time.format("%B %d, %Y"),
+        formatTime = d3.time.format("%I:%M %p");
+	</script>
+
+	<!-- make enter search -->
+	<script>
+		$(document).keydown( function(event) {
+		  if (event.which === 13) {
+			document.getElementById("submitBut").click();
+		  }
+		});
+	</script>
+
+	<!-- switch dept/arr airport button -->
+	<script>
+		function switch_dept_arr(){
+			dept = document.getElementById('from_aprt');
+			arr = document.getElementById('to_aprt');
+
+			temp = dept.value;
+			dept.value = arr.value;
+			arr.value = temp;
+		}
+	</script>
+
+	<!-- Execute python script with websockets -->
+	<script>
+
+		function grab_local_points(mmmap, callback){
+			var ws = new WebSocket("ws://dv8.osu.edu:{{port}}/websocket");
+			// ws = new WebSocket("ws://localhost:{{port}}/websocket");
+			ws.onopen = function(e) {
+				//var mess = 'local ' + fid_min + ' ' + fid_max
+				ws.send('local' + JSON.stringify(mmmap));
+			}
+			ws.onmessage = function (file_name_message){
+					ReRenderData(file_name_message.data, ws, function() { redo_charts(); });
+					console.log("rerender")
+			};
+
+			function redo_charts(callback2){
+
+					window.animator = new Animator(renderAll, charts, beginDate, endDate);
+					animator.resetAll();
+
+					ws.close();
+			}
+			ws.onclose = function(){
+
+				console.log("onclose");
+
+				callback && callback();
+
+			}
+
+		}
+
+		function createCSV(){
+			var ws = new WebSocket("ws://dv8.osu.edu:{{port}}/websocket");
+			// ws = new WebSocket("ws://localhost:{{port}}/websocket");
+			ws.onopen = function (e) {
+
+				//get fid list
+				var fid_list_str = "";
+				fidGrouping.top(Infinity).forEach(function(ele) {
+					fid_list_str += ele.key + ', ';
+				});
+				fid_list_str = fid_list_str.slice(0, -2);
+				ws.send(fid_list_str);
+			}
+			ws.onclose = function () {
+				document.getElementById('dl_frame').src = '{{static_url("aggregate_data.csv")}}';
+			}
+		}
+
+		//leftover from lazy loading
+		//here for posterity
+		function iterateQuery(){
+			var ws = new WebSocket("ws://localhost:8888/websocket");
+			document.getElementById("itButton").style.display = 'none';
+			ws.onopen = function (e) {
+				ws.send('iterate_first');
+				charts = null;
+				chart = null;
+			}
+			ws.onmessage = function (file_name_message){
+					ReRenderData(file_name_message.data, ws);
+					//ws.send('iterate'); -- this is handled by ReRenderData
+			};
+			ws.onclose = function(){
+
+				console.log("onclose");
+
+
+				//setTimeout( function() {
+
+					charts = [
+
+					  barChart()
+						  .dimension(timeDimension)
+						  .group(hourGrouping)
+						.x(d3.scale.linear()
+						  .domain([0, 23])
+						  .rangeRound([0, 23 * 12])),
+
+					  barChart()
+						  .dimension(timeArrDimension)
+						  .group(hourArrGrouping)
+						.x(d3.scale.linear()
+						  .domain([0, 23])
+						  .rangeRound([0, 23 * 12])),
+
+					  barChart()
+						  .dimension(point_timeDimension)
+						  .group(point_timeGrouping)
+						.x(d3.scale.linear()
+						  .domain([0, 23])
+						  .rangeRound([0, 23 * 12])),
+
+					  barChart()
+						  .dimension(dateDimension)
+						  .group(dateGrouping)
+						  .round(d3.time.day.round)
+						.x(d3.time.scale()
+						  .domain([beginDate, endDate])
+						  .rangeRound([0, 23 * 12]))
+					];
+
+
+
+					chart = d3.selectAll(".chart")
+						.data(charts)
+						.each(function(chart) { chart.on("brush", renderAll).on("brushend", renderAll); });
+
+					/*
+					console.log(charts);
+					console.log(charts[0]);
+
+					charts.forEach(function(chart){
+						var topTick = chart.group.top(1)[0].value;
+						console.log(topTick);
+						chart.y.domain([0, topTick]);
+						chart.yaxis.tickValues([0, topTick/2, topTick]);
+						chart.yaxis.scale(y);
+					});
+
+					var topTick = point_timeGrouping.top(1)[0].value;
+					var y = d3.scale.linear().range([100, 0])
+					var yAxis = d3.svg.axis().scale(y).orient("left");
+
+					y.domain([0, topTick]);
+					console.log(topTick*10);
+					yAxis.tickValues([0, topTick/2, topTick]);
+
+					d3.selectAll("g.y.axis")
+						.call(yAxis)
+					*/
+
+
+					window.animator = new Animator(renderAll, charts, beginDate, endDate);
+					animator.resetAll();
+
+				//}, 500);
+
+			}
+		}
+	</script>
+	<!--Show/Hide Flight List -->
+	<script>
+	function hideList()
+	{
+		button = document.getElementById('hideList');
+		templist = document.getElementById('lists');
+
+		if (!listShown){
+			templist.style.display = 'block';
+			button.textContent = 'Hide List';
+			list.each(render);
+		}else{
+			templist.style.display = 'none';
+			button.textContent = 'Show List';
+		}
+		listShown = !listShown;
+	}
+	</script>
+	<!-- Switch Maps Button -->
+	<script>
+	function switchMaps()
+	{
+		var heatZ = parseInt(document.getElementById('heatmap').style.zIndex);
+		var mapZ = parseInt(document.getElementById('map').style.zIndex);
+
+		if (heatZ > mapZ)
+		{
+			heatZ--;
+			mapZ++;
+			map.setView(heatmap.getCenter(), heatmap.getZoom(), {
+              animate: false,
+              reset: true
+			});
+			drawmap(fid_timeDimension);
+			mapShown = true;
+		}
+		else
+		{
+			heatZ++;
+			mapZ--;
+			heatmap.setView(map.getCenter(), map.getZoom(), {
+              animate: false,
+              reset: true
+			});
+			drawheatmap(allDim);
+			mapShown = false;
+		}
+
+		document.getElementById('heatmap').style.zIndex = heatZ;
+		document.getElementById('map').style.zIndex = mapZ;
+	}
+	</script>
+
+	<!-- Switch zoom_query on/off-->
+	<script>
+	function switch_zoom_query()
+	{
+		var but = document.getElementById('zoom_query_button');
+
+
+		if (zoom_query){
+			but.textContent = 'Zoom Query: OFF';
+			but.className = 'btn btn-danger';
+			zoom_query = false;
+		}
+		else{
+			but.textContent = 'Zoom Query: ON';
+			but.className = 'btn btn-primary';
+			zoom_query = true;
+		}
+
+	}
+	</script>
+	<!-- switch drawing polys/dragging the map on/off -->
+	<script>
+	function switch_freeDraw()
+	{
+		if (freeDraw_on) {
+			freeDraw.mode(NONE)
+			map.dragging.enable();
+			freeDraw_on = false;
+		}
+		else {
+			freeDraw.mode(ALL)
+			map.dragging.disable();
+			freeDraw_on = true;
+		}
+
+	}
+	</script>
+
+	<!-- Switch B/W-->
+	<script>
+	function switchColor()
+	{
+		var colorButton = document.getElementById('switchColor');
+		var currColor = colorButton.textContent;
+
+		if(mapShown) {
+            map.removeLayer(mapboxTiles);
+
+            if (currColor == 'B/W Map') {
+                colorButton.textContent = 'Color Map';
+                mapboxTiles = L.tileLayer('https://api.mapbox.com/v4/mapbox.light/{z}/{x}/{y}.png?access_token=' + mapboxAccess,
+                    {
+                        attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+                    });
+            }
+            else {
+                colorButton.textContent = 'B/W Map';
+                mapboxTiles = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + mapboxAccess,
+                    {
+                        attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+                    });
+            }
+            map.addLayer(mapboxTiles);
+        } else {
+		    heatmap.removeLayer(titles);
+            if (currColor == 'B/W Map') {
+                colorButton.textContent = 'Color Map';
+                titles = L.tileLayer('https://api.mapbox.com/v4/mapbox.light/{z}/{x}/{y}.png?access_token=' + mapboxAccess,
+                    {
+                        attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+                    });
+            }
+            else {
+                colorButton.textContent = 'B/W Map';
+                titles = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + mapboxAccess,
+                    {
+                        attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+                    });
+            }
+            heatmap.addLayer(titles);
+		}
+
+	}
+
+	</script>
+
+
+	<!-- Draw Polygon Stuff -->
+
+	<script>
+	function isMarkerInsidePolygon(x, y, polyPoints) {
+		//var polyPoints = poly.getLatLngs();
+		//var x = marker.getLatLng().lat, y = marker.getLatLng().lng;
+
+
+		var inside = false;
+		for (var i = 0, j = polyPoints.length - 1; i < polyPoints.length; j = i++) {
+			var xi = polyPoints[i].lat, yi = polyPoints[i].lng;
+			var xj = polyPoints[j].lat, yj = polyPoints[j].lng;
+
+			var intersect = ((yi > y) != (yj > y))
+				&& (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+			if (intersect) inside = !inside;
+		}
+
+		return inside;
+	};
+
+	function boundsContains(bnds, point) {
+		console.log(bnds);
+		var x = point.x;
+		var y = point.y;
+		var minX = bnds.getTopLeft().x;
+		var minY = bnds.getTopLeft().Y;
+		var maxX = bnds.getBottomRight().x;
+		var maxY = bnds.getBottomRight().y;
+		return x > minX && y > minY && x < maxX && y < maxY
+	}
+
+	function getBoundingBox(latlngs) {
+		//find min,max x,y
+		var minX = 1000000000, minY = 1000000000, maxX = 0, maxY = 0;
+		for (var i=0; i < latlngs.length; i++) {
+			//var layerPoint = map.project(latlngs[i]).divideBy(256).floor();
+			var layerPoint = map.latLngToLayerPoint(latlngs[i]);
+			if (layerPoint.x > maxX) { maxX = layerPoint.x; }
+			if (layerPoint.x < minX) { minX = layerPoint.x; }
+			if (layerPoint.y > maxY) { maxY = layerPoint.y; }
+			if (layerPoint.y < minY) { minY = layerPoint.y; }
+		}
+
+		//return [L.point(minX, minY), L.point(maxX, maxY)];
+		var bounds = new L.LatLngBounds(
+			map.layerPointToLatLng(L.point(minX, minY)),
+			map.layerPointToLatLng(L.point(maxX, maxY)));
+
+		return bounds;
+	}
+
+	function markersInsidePoly(polyPoints) {
+
+		//get data from crossfilter dimension
+		var count = 0;
+		var totalAlt = 0;
+		var maxAlt = 0;
+		var maxSpeed = 0;
+		var totalSpeed = 0;
+		var dimension = allDim.top(Infinity);
+		var bounds = -1;
+		filtered_set.clear();
+
+		//check every point, filter points not in
+		for (var poly = 0; poly < polyPoints.length; poly++) {
+			var bounds = getBoundingBox(polyPoints[poly]);
+
+
+			for (var i=0; i<dimension.length; i++) {
+				var latlng = new L.LatLng(parseFloat(dimension[i].lat), parseFloat(dimension[i].lng));
+				//var point = map.latLngToLayerPoint(latlng);
+
+				//is in polygon's bounding box (fast filter) && inside polygon (slow filter)
+				if (bounds.contains(latlng) && isMarkerInsidePolygon(latlng.lat, latlng.lng, polyPoints[poly])) {
+				//if (boundsContains(bounds, point) && isMarkerInsidePolygon(latlng.lat, latlng.lng, polyPoints)) {
+					//count
+					count++;
+					//alt
+					tempAlt = parseInt(dimension[i].alt);
+					totalAlt += tempAlt;
+					if (tempAlt > maxAlt){
+						maxAlt = tempAlt;
+					}
+					//speed
+					tempSpeed = parseInt(dimension[i].ground)
+					totalSpeed += tempSpeed;
+					if (tempSpeed > maxSpeed){
+						maxSpeed = tempSpeed;
+					}
+
+					//						this is string concatenation
+					filtered_set.add(dimension[i].flight_id + dimension[i].point_time);
+				}
+
+			}
+		}
+
+		var avgAlt = Math.round(totalAlt*100/count)/1000; //truncates and puts in correct units
+		var avgSpeed = Math.round(totalSpeed*100/count)/100;
+
+		//using a set to track this instead of directly using the above check to filter is... stupid
+		//TODO stop being bad
+		allDim.filter(function(d)
+						{
+							return filtered_set.has(d.flight_id + d.point_time);
+						});
+		renderAll_Loading();
+		//remove no longer needed data TODO did this break anything?
+		dimension = null;
+		filtered_set.clear();
+		//
+		//add info box to map
+		try{
+			info.remove();
+		}catch(exception){ /*this is fine*/}
+		info.onAdd = function (map){
+				this._div = L.DomUtil.create('div', 'info');
+
+				//this._div.innerHTML = "<button style='float:right' onclick='javascript:clearSelection();'><b>Clear Selection</b></button>";
+				document.getElementById("clearSelection_button").style.display = "block";
+
+				text = "<b> Points Selected:</b> " + count;
+				text += "<br><b>Max Alt:</b> " + (maxAlt/10.0) + " Thousand Feet";
+				text += "<br><b>Avg Alt:</b> " + avgAlt + " Thousand Feet";
+				text += "<br><b>Max Speed:</b> " + maxSpeed + " Knots";
+				text += "<br><b>Avg Speed:</b> " + avgSpeed + " Knots";
+
+
+				this._div.innerHTML += text;
+
+
+
+				return this._div;
+		};
+		//info.addTo(map);
+        document.getElementById("clearSelection_button").style.display = "block";
+		map.fitBounds(bounds);
+		console.log('markers in poly');
+	}
+
+	function min_max_hashes_in_poly(polyPoints) {
+		var dimension = allDim.top(Infinity);
+		var points = []
+		//check every point, filter points not in
+		for (var poly = 0; poly < polyPoints.length; poly++) {
+			var bounds = getBoundingBox(polyPoints[poly]);
+
+			for (var i=0; i<dimension.length; i++) {
+				var latlng = new L.LatLng(parseFloat(dimension[i].lat), parseFloat(dimension[i].lng));
+				//is in polygon's bounding box (fast filter) && inside polygon (slow filter)
+				if (bounds.contains(latlng) && isMarkerInsidePolygon(latlng.lat, latlng.lng, polyPoints[poly])) {
+					points.push(dimension[i]);
+				}
+
+			}
+		}
+		return min_max_hashes(points);
+	}
+	</script>
+
+
+	<!-- ZOOM END -->
+	<script>
+	function clearSelection(){
+
+		freeDraw.clear();
+		filtered_set.clear();
+		allDim.filter(null);
+		renderAll_Loading();
+		info.remove();
+		document.getElementById("clearSelection_button").style.display = "none";
+
+	}
+
+	function zoom_end_points(e){
+		var dimension = allDim.top(Infinity);
+		var points = []; //this will be returned for the next function, time saver
+			for (var i=0; i<dimension.length; i++){
+				var latlng = new L.LatLng(parseFloat(dimension[i].lat), parseFloat(dimension[i].lng));
+				if (e.boxZoomBounds.contains(latlng)){
+					points.push(dimension[i]);
+				}
+			}
+		return points
+	}
+
+
+	//FLAGGED for removal
+	//TODO deprecate
+	function ZoomEnd(e) {
+		//clearSelection();
+
+		//get data from crossfilter dimension
+		var count = 0;
+		var totalAlt = 0;
+		var maxAlt = 0;
+		var maxSpeed = 0;
+		var totalSpeed = 0;
+		var dimension = allDim.top(Infinity);
+		filtered_set.clear();
+		for (var i=0; i<dimension.length; i++){
+			var latlng = new L.LatLng(parseFloat(dimension[i].lat), parseFloat(dimension[i].lng));
+			if (e.boxZoomBounds.contains(latlng)){
+				//count
+				count++;
+				//alt
+				tempAlt = parseInt(dimension[i].alt);
+				totalAlt += tempAlt;
+				if (tempAlt > maxAlt){
+					maxAlt = tempAlt;
+				}
+				//speed
+				tempSpeed = parseInt(dimension[i].ground)
+				totalSpeed += tempSpeed;
+				if (tempSpeed > maxSpeed){
+					maxSpeed = tempSpeed;
+				}
+
+				//						this is string concatenation
+				filtered_set.add(dimension[i].flight_id + dimension[i].point_time);
+			}
+		}
+		var avgAlt = Math.round(totalAlt*100/count)/1000; //truncates and puts in correct units
+		var avgSpeed = Math.round(totalSpeed*100/count)/100;
+		//
+		allDim.filter(function(d)
+						{
+							return filtered_set.has(d.flight_id + d.point_time);
+						});
+		renderAll_Loading();
+		dimension = null;
+		//
+		//add info box to map
+		try{
+			info.remove();
+		}catch(exception){ /*this is fine*/}
+		info.onAdd = function (map){
+				this._div = L.DomUtil.create('div', 'info');
+
+				this._div.innerHTML = "<button style='float:right' onclick='javascript:clearSelection();'><b>Clear Selection</b></button>";
+
+				text = "<b>Points Selected:</b> " + count;
+				text += "<br><b>Max Alt:</b> " + (maxAlt/10.0) + " Thousand Feet";
+				text += "<br><b>Avg Alt:</b> " + avgAlt + " Thousand Feet";
+				text += "<br><b>Max Speed:</b> " + maxSpeed + " Knots";
+				text += "<br><b>Avg Speed:</b> " + avgSpeed + " Knots";
+
+
+				this._div.innerHTML += text;
+
+				return this._div;
+		};
+		//info.addTo(map);
+        document.getElementById("clearSelection_button").style.display = "block";
+		console.log('zoom end');
+	  }
+
+	function min_max_hashes(points){
+		//returns map of {fid : [min_hash, max_hash, [all hashes]]}
+		//whydo i need all hashes? TODO remember why
+		mmmap = {};
+		points.forEach(function(point, i){
+				ih = parseInt(point.hash);
+				fid = point.hash.substring(0, 14);
+				if (!mmmap[fid]){
+					mmmap[fid] = [ih, ih, [ih]];
+				}
+				else{
+					mm = mmmap[fid];
+					if(mm[0] > ih){ mm[0] = ih; }
+					if(mm[1] < ih){ mm[1] = ih; }
+					mm[2].push(ih);
+				}
+		});
+		return mmmap;
+	}
+	</script>
+
+	<!-- MAP GENERATION -->
+    <script>
+      //L.mapbpx.accessToken = 'pk.eyJ1IjoiYmVocm9vem9taWR2YXIiLCJhIjoiY2lpOTJneGpyMDAyNXZ1a29kZWN0cXk2ZiJ9.zGrpksooywrH3DjawX9u5w';
+      var mapboxTiles = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + mapboxAccess,
+      {
+        attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+      }); // leaflet is authenticated
+      map = L.map('map', {zoomControl: false}).addLayer(mapboxTiles).setView([39.98912,-83.0068], 4); // leaflet map is defined
+	  L.control.zoom({position:'topright'}).addTo(map);
+
+
+	  freeDraw = new FreeDraw();
+	  map.addLayer(freeDraw);
+	  freeDraw.mode(NONE);
+	  freeDraw.on('markers', event => {
+		console.log(event.latLngs);
+		//this if only matters if its the first poly drawn
+		//TODO make this adaptable
+
+		if (zoom_query && event.latLngs.length > 0) {
+			min_max_map = min_max_hashes_in_poly(event.latLngs);
+			grab_local_points(min_max_map, function () { markersInsidePoly(event.latLngs) });
+		}
+		else if (event.latLngs.length > 0) {
+			markersInsidePoly(event.latLngs);
+		}
+	  });
+
+	  //select within zoombox
+	  map.on("boxzoomend", function(e){
+	    if (zoom_query){
+			points = zoom_end_points(e);
+			//points is a list of hashs = fid concated with hash
+			min_max_map = min_max_hashes(points);
+			grab_local_points(min_max_map, function () { ZoomEnd(e) } );
+		}
+		else{
+			ZoomEnd(e)
+		}
+	  });
+	  L.Control.boxzoom({ position:'topright' }).addTo(map);
+
+      layerp = new L.FeatureGroup();
+    </script>
+
+
+	<!-- Heat Map GENERATION -->
+    <script>
+        var titles = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + mapboxAccess,
+            {
+                attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+            });
+      heatmap = L.map('heatmap', {zoomControl: false}).addLayer(titles).setView([39.98912,-83.0068], 4);
+	  L.control.zoom({position:'topright'}).addTo(heatmap);
+
+    </script>
+	<!--END MAP GENERATION-->
+
+
+
+	<!-- Draw Maps -->
+	<script>
+    function showOnlyPlan(){
+        button = document.getElementById('ShowOnlyPlan');
+        if(onlyPlan == 0){
+            onlyPlan = 1;
+            button.textContent = 'Only Actual Route';
+            drawmap(fid_timeDimension);
+        }else if (onlyPlan == 1){
+            onlyPlan = 2;
+            button.textContent = 'Show All Route';
+            drawmap(fid_timeDimension);
+        }else {
+            onlyPlan = 0;
+            button.textContent = 'Only Plan Route';
+            drawmap(fid_timeDimension);
+		}
+    }
+
+	function drawheatmap(dimension) {
+      points = []
+      _.each(dimension.top(Infinity), function (d) {
+        point = {lat: d.lat, lng: d.lng};
+        points.push(point)
+      });
+      heat.setLatLngs(points);
+      heat.redraw();
+    }
+
+	function range_hexcolor(natural, isBlue){
+        if (natural > 1){
+            natural = 1;
+        }else if (natural<0){
+            natural = 0;
+        }
+
+		//get circle color
+		var hexColor = "";
+		var color_string = "";
+		var whiteness = -1;
+		if (natural < .5){
+			whiteness = Math.round( (255 * natural) / 0.5);
+		}
+		else{
+			whiteness = Math.round(255 - (((natural - 0.5) * 255) / 0.5));
+		}
+
+		//calculate how close to white
+		if (whiteness == 0){
+			color_string = "00"
+		}
+		if (whiteness < 16){
+			color_string = "0" + whiteness.toString(16);
+		}
+		else{
+			color_string = whiteness.toString(16);
+		}
+
+		if (natural < .5){
+			hexColor = "#FF" + color_string + color_string;
+		}
+		else if(isBlue){
+			hexColor = "#" + color_string + color_string + "FF";
+		}
+		else{
+			hexColor = "#" + color_string + "08FF";
+		}
+		return hexColor;
+	}
+
+	function distinct_hexcolor(top_list, ele){
+		colors = [
+					'#FFB300', // Vivid Yellow
+					'#803E75', //Strong Purple
+					'#FF6800', // Vivid Orange
+					'#A6BDD7', // Very Light Blue
+					'#C10020', // Vivid Red
+					'#CEA262', // Grayish Yellow
+					'#817066', // Medium Gray
+
+					// The following don't work well for people with defective color vision
+					'#007D34', // Vivid Green
+					'#F6768E', // Strong Purplish Pink
+					'#00538A', // Strong Blue
+					'#FF7A5C', // Strong Yellowish Pink
+					'#53377A', // Strong Violet
+					'#FF8E00', // Vivid Orange Yellow
+					'#B32851', // Strong Purplish Red
+					'#F4C800', // Vivid Greenish Yellow
+					'#7F180D', // Strong Reddish Brown
+					'#93AA00', // Vivid Yellowish Green
+					'#593315', // Deep Yellowish Brown
+					'#F13A13', // Vivid Reddish Orange
+					'#232C16', // Dark Olive Green
+					]
+		if (top_list.has(ele)){
+			var i = (top_list.get(ele)+1+color_scheme) % NUM_COLORS;
+			var hexColor = colors[i]
+
+			//legend
+			if(!added_is.has(i)){
+				added_is.add(i);
+
+				var legend = document.getElementById("legend");
+				var key = document.getElementById('key');
+				if(key.style.display = 'none'){
+					key.style.display = 'table';
+				}
+
+
+				var key_row = document.createElement('li');
+				key_row.innerHTML = '<span class="color_key" style="background-color:' + hexColor + '"></span>' + ele;
+				legend.appendChild(key_row);
+			}
+
+
+			return hexColor;
+		}
+
+		//flag for first "other" flight
+		if(!added_is.has(-1)){
+			added_is.add(-1);
+			var key_row = document.createElement('li');
+			key_row.innerHTML = '<span class="color_key" style="background-color: #aaaaaa"></span> OTHER';
+			document.getElementById('legend').appendChild(key_row);
+		}
+
+		return '#aaaaaa';
+	}
+
+    function processData(allText) {
+        console.log(allText)
+    }
+
+	function clustering(){
+        var ws = new WebSocket("ws://dv8.osu.edu:{{port}}/websocket");
+        // ws = new WebSocket("ws://localhost:{{port}}/websocket");
+        ws.onopen = function (e) {
+          var option = prompt("Choose a similarity function: 1 for distance, 2 for cosine similarity ");
+		  if(option==1){
+              var thred = prompt("Choose a threshold, unit: nm");
+              var num_points = prompt("Choose point extraction factor (one point from every N points): ");
+              metric = clusteringMetric();
+              ws.send("cluster1"+","+thred+","+num_points+","+metric);
+		  }
+          if(option==2){
+              var thred = prompt("Choose a threshold, range: [0,1]");
+              var num_points = prompt("Choose point extraction factor (one point from every N points): ");
+              metric = clusteringMetric();
+              ws.send("cluster2"+","+thred+","+num_points+","+metric);
+          }
+        }
+        ws.onclose = function () {
+            //alert("clustering complete");
+            var flight_cluster = new Map();
+            d3.csv("/static/multipointviz/result.csv", function(data) // The main data of points will be loaded here.
+            {
+                data.forEach(function(d){
+                    flight_cluster.set(parseInt(d.flight_id), parseInt(d.cluster));
+                });
+            });
+        }
+
+
+
+
+    }
+
+	function clusteringMetric(){
+			var option = prompt("Choose: 1 for automatic silhouette score metric, 2 for human-in-the-loop manual threshold");
+			return option;
+	}
+
+  function distance_function(flight_id_1,flight_id_2){
+      var lat_lng_flight_1 = fid_lat_lng_map.get(flight_id_1);
+      var lat_lng_flight_2 = fid_lat_lng_map.get(flight_id_2);
+      var lat_lng_flight_1_len = lat_lng_flight_1.length;
+      var lat_lng_flight_2_len = lat_lng_flight_2.length;
+      var total_distance = 0;
+      var num_points = lat_lng_flight_1[0][2];
+      num_points = Math.min(Math.min(lat_lng_flight_1_len, lat_lng_flight_2_len), num_points);
+
+      for (var i = 0; i<=num_points-1; i++){
+        var index1 = Math.round(lat_lng_flight_1_len / num_points * i);
+        var index2 = Math.round(lat_lng_flight_2_len / num_points * i);
+        var lat1 = lat_lng_flight_1[index1][0];
+        var lat2 = lat_lng_flight_2[index2][0];
+        var lng1 = lat_lng_flight_1[index1][1];
+        var lng2 = lat_lng_flight_2[index2][1];
+
+
+        var point_distance = distance(lat1,lng1,lat2,lng2);
+        total_distance += point_distance;
+      }
+      return total_distance/num_points;
+  }
+
+    function similarity(a1, a2, b1, b2){
+        var product = a1*b1 + a2*b2;
+        var norma = Math.sqrt(a1*a1 + a2*a2);
+        var normb = Math.sqrt(b1*b1 + b2*b2);
+        return product/(norma*normb);
+	}
+
+    function distance_function2(flight_id_1,flight_id_2){
+        var lat_lng_flight_1 = fid_lat_lng_map.get(flight_id_1);
+        var lat_lng_flight_2 = fid_lat_lng_map.get(flight_id_2);
+        var lat_lng_flight_1_len = lat_lng_flight_1.length;
+        var lat_lng_flight_2_len = lat_lng_flight_2.length;
+        var total_distance = 0;
+        var prv_lat1 = lat_lng_flight_1[0][0];
+        var prv_lat2 = lat_lng_flight_2[0][0];
+        var prv_lng1 = lat_lng_flight_1[0][1];
+        var prv_lng2 = lat_lng_flight_2[0][1];
+        var num_points = lat_lng_flight_1[0][2];
+        num_points = Math.min(Math.min(lat_lng_flight_1_len, lat_lng_flight_2_len), num_points);
+  
+        for (var i = 1; i< num_points-1; i++){
+            var index1 = Math.round(lat_lng_flight_1_len / num_points * i);
+            var index2 = Math.round(lat_lng_flight_2_len / num_points * i);
+
+            var lat1 = lat_lng_flight_1[index1][0];
+            var lat2 = lat_lng_flight_2[index2][0];
+            var lng1 = lat_lng_flight_1[index1][1];
+            var lng2 = lat_lng_flight_2[index2][1];
+
+            var cos_sim = similarity(lat1-prv_lat1, lng1-prv_lng1, lat2-prv_lat2, lng2-prv_lng2);
+			var distance = 1-cos_sim;
+            total_distance += distance;
+
+            prv_lat1 = lat1;
+            prv_lat2 = lat2;
+            prv_lng1 = lng1;
+            prv_lng2 = lng2;
+        }
+        return total_distance/ (num_points-1);
+    }
+
+function traverse(obj, func) {
+    func(obj);
+    if (obj.left) {
+        traverse(obj.left, func);
+    }
+    if (obj.right) {
+        traverse(obj.right, func);
+    }
+}
+
+
+
+  function draw_cluster_js(){
+    
+     var flight_lat_lng = [];
+     var flight_id = [];
+     var prv_hour = -1;
+     var index = -1;
+     fid_lat_lng_map = new Map();
+     var num_points = prompt("Choose point extraction factor (one point from every N points): ");
+     _.each(fid_timeDimension.top(Infinity),function(d){
+      if(!fid_lat_lng_map.has(d.flight_id)){
+        prv_hour = parseInt(d.point_time.substring(0, 2));
+        index = 0;
+        var lat_lng_pair = [];
+        if(d.lat!=undefined && d.lng!=undefined){
+          lat_lng_pair.splice(index, 0, [d.lat,d.lng,num_points]);
+          fid_lat_lng_map.set(d.flight_id,lat_lng_pair);
+        }
+        index += 1;
+      }else{
+        if(parseInt(prv_hour-d.point_time.substring(0, 2)) > 2){
+            index = 0;
+		}
+        var cur_lat_lng_pair = fid_lat_lng_map.get(d.flight_id);
+        cur_lat_lng_pair.splice(index, 0, [d.lat,d.lng,num_points]);
+        fid_lat_lng_map.set(d.flight_id,cur_lat_lng_pair);
+        prv_hour = parseInt(d.point_time.substring(0, 2));
+        index += 1;
+      }
+
+     });
+     var keys = Array.from( fid_lat_lng_map.keys() );
+      var option = prompt("Choose a similarity function: 1 for distance, 2 for cosine similarity");
+      if(option==1){
+          var thred = prompt("Choose a threshold, unit: nm");
+          //var num_points = prompt("Choose number of points per flight to compute, larger number for higher accuracy but lower speed (suggest 8)");
+          var clusters = clusterfck.hcluster(keys, distance_function, clusterfck.AVERAGE_LINKAGE, thred);
+      }
+      if(option==2){
+          var thred = prompt("Choose a threshold, range: [0,1]");
+          //var num_points = prompt("Choose number of points per flight to compute, larger number for higher accuracy but lower speed (suggest 8)");
+          var clusters = clusterfck.hcluster(keys, distance_function2, clusterfck.AVERAGE_LINKAGE, thred);
+      }
+     var flight_cluster = new Map();
+     var i = 0;
+     for (var i = 0; i < clusters.length; i++) {
+      traverse(clusters[i], function(node) {
+        if (node.value) {
+            flight_cluster.set(node.value,i+1);
+      };
+     });
+    }
+    var last_fid = -1;
+    var cluster = -1;
+    var data_count = 0;
+    var keys = Object.keys(flight_cluster.entries);
+    cluster_counts = new Map();
+    _.each(fid_timeDimension.top(Infinity), function (d) {
+
+          if (d.flight_id != last_fid) {
+              cluster = flight_cluster.get(d.flight_id);
+              d.cluster = cluster;
+              if (cluster_counts.has(cluster)) {
+                  cluster_counts.set(cluster, cluster_counts.get(cluster) + 1);
+              }
+              else {
+                  cluster_counts.set(cluster, 1);
+              }
+              last_fid = d.flight_id;
+          } else {
+              d.cluster = cluster;
+          }
+          data_count ++;
+      });
+
+
+    for (var [key, val] of cluster_counts.entries()) {
+        cluster_list.push([val, key]);
+    }
+    var NUM_COLORS = 20;
+    for (var i=0; i<NUM_COLORS; i++){
+        if (i >= cluster_list.length){ break; }
+        top_clusters.set(cluster_list[i][1], i);
+    }
+
+    //drawmap(fid_timeDimension);
+
+    var flight_count = fidGrouping.all().length;
+    last_fid = -1;
+    var index = 0;
+    var count = cluster_counts.size;
+    var speeds = new Array(count);
+    var cluster_num_count = new Array(count).fill(0);
+    for(i=0;i<count;i++){
+      speeds[i] = new Array(0);
+    }
+    var sum_speed = new Array(count);
+    var alt= new Array(count);
+    for(i=0;i<count;i++){
+      alt[i] = new Array(0);
+    }
+    var dist = new Array(count);
+    for(i=0;i<count;i++){
+      dist[i] = new Array(0);
+    }
+
+    var sum_alt = new Array(count);
+    var dist_sum = new Array(count);
+    var lat = new Array(count);
+    var lng = new Array(count);
+    var prv_lat = new Array(count);
+    var prv_lng = new Array(count);
+
+
+    var gc_dists = new Array(count);
+
+    var diffs = new Array(count);
+    var deviations = new Array(count);
+    var gc_dist = new Array(cluster_counts);
+    var hour = new Array(cluster_counts);
+    var prv_hour = new Array(cluster_counts);
+    var break_lat = new Array(cluster_counts);
+    var break_lng = new Array(cluster_counts);
+    var final_lat = new Array(cluster_counts);
+    var final_lng = new Array(cluster_counts);
+    var broken = new Array(cluster_counts);
+    var times = new Array(count);
+    var flight_hour = new Array(cluster_counts);
+    var flight_min = new Array(cluster_counts);
+    var dept_hour = new Array(cluster_counts);
+    var dept_min = new Array(cluster_counts);
+    var arr_hour = new Array(cluster_counts);
+    var arr_min = new Array(cluster_counts);
+    var final_hour = new Array(cluster_counts);
+    var final_min = new Array(cluster_counts);
+    var cluster = 0;
+    var point_speed = 0;
+    var total_speed = 0;
+    var point_alt = 0;
+    var total_alt = 0;
+    var point_count = 1;
+    var data_pointer = 0;
+    var point_lat = 0;
+    var point_lng = 0;
+    var point_dist = 0;
+    var prev_lat = 0;
+    var prev_lng = 0;
+    var total_dist = 0;
+    _.each(fid_timeDimension.top(Infinity), function (d) {
+
+        hour = parseInt(d.point_time.substring(0, 2));
+
+        if (d.flight_id != last_fid) {
+          if(data_pointer!=0){
+          cluster = flight_cluster.get(d.flight_id) - 1;
+          var avg_speed = total_speed / point_count;
+          var avg_alt  = total_alt / point_count;
+          var avg_dist = total_dist / point_count;
+          speeds[cluster].push(avg_speed);
+          alt[cluster].push(avg_alt);
+          dist[cluster].push(avg_dist);
+          total_speed = 0;
+          total_alt = 0;
+          total_dist = 0;
+          point_count = 1;
+          }else{
+            point_speed = parseInt(d.ground);
+            point_alt = parseInt(d.alt);
+            total_speed = total_speed + point_speed;
+            total_alt = total_alt + point_alt;
+            point_count++;
+          }
+
+        last_fid = d.flight_id;
+        }else{
+            point_speed = parseInt(d.ground);
+            point_alt = parseInt(d.alt);
+            total_speed = total_speed + point_speed;
+            total_alt = total_alt + point_alt;
+            point_lat = parseFloat(d.lat);
+            point_lng = parseFloat(d.lng);
+            point_dist = distance(prev_lat, prev_lng, point_lat, point_lat);
+            total_dist = total_dist + point_dist;
+            point_count++;
+            if(data_pointer==(data_count-1)){
+              var avg_speed = total_speed / point_count;
+              var avg_alt  = total_alt / point_count;
+              var avg_dist = total_dist / point_count;
+              speeds[cluster].push(avg_speed);
+              alt[cluster].push(avg_alt);
+              dist[cluster].push(avg_dist);
+            }
+        }
+        data_pointer++;
+        cluster_num_count[cluster] = cluster_num_count[cluster] + 1;
+    });
+    sum_speed = new Array(count).fill(0);
+    for (i = 0; i < count; i++) {
+      for(j = 0; j<speeds[i].length;j++){
+        sum_speed[i] = sum_speed[i] + speeds[i][j];
+      }
+    }
+    var ave_speed = new Array(count);
+    for(i=0;i<count;i++){
+      ave_speed[i] = sum_speed[i] / speeds[i].length;
+    }
+    var square_speed = new Array(count).fill(0);
+    for (i = 0; i < count; i++) {
+      for(j=0;j<speeds[i].length;j++){
+        square_speed[i] += Math.pow((speeds[i][j] - ave_speed[i]), 2);
+      }
+    }
+    var std_speed = new Array(count).fill(0);
+    for(i=0;i<count;i++){
+      std_speed[i] = (Math.sqrt(square_speed[i] / speeds[i].length));
+    }
+
+
+
+    sum_alt= new Array(count).fill(0);
+    for (i = 0; i < count; i++) {
+      for(j = 0; j<alt[i].length;j++){
+        sum_alt[i] = sum_alt[i] + alt[i][j];
+      }
+    }
+
+    var ave_alt = new Array(count).fill(0);
+    for(i=0;i<count;i++){
+      ave_alt[i] = sum_alt[i] / alt[i].length;
+    }
+
+    var square_alt = new Array(count).fill(0);
+    for (i = 0; i < count; i++) {
+        for(j=0;j<alt[i].length;j++){
+          square_alt[i] += Math.pow((alt[i][j] - ave_alt[i]), 2);
+        }
+    }
+
+    var std_alt = new Array(count).fill(0);
+    for(i=0;i<count;i++){
+      std_alt[i] = Math.sqrt(square_alt[i] / alt[i].length);
+    }
+
+    dist_sum= new Array(count).fill(0);
+    for (i = 0; i < count; i++) {
+      for(j = 0; j<dist[i].length;j++){
+        dist_sum[i] += dist[i][j];
+      }
+    }
+
+    var ave_dist = new Array(count).fill(0);
+    for(i=0;i<count;i++){
+      ave_dist[i] = dist_sum[i] / dist[i].length;
+    }
+
+    var square_dist = new Array(count).fill(0);
+    for (i = 0; i < count; i++) {
+        for(j=1;j<dist[i].length;j++){
+          square_dist[i] += Math.pow((dist[i][j] - ave_dist[i]), 2);
+        }
+    }
+
+    var std_dist = new Array(count).fill(0);
+    for(i=0;i<count;i++){
+      std_dist[i] = Math.sqrt(square_dist[i] / (dist[i].length));
+    }
+
+    stats = "<b>Cluster Summary</b>";
+    stats += "<br>";
+    for(i=0;i<count;i++){
+      var j = i+1;
+      stats += "<br><b>Cluster" + j + ": </b>";
+      stats += "<br>Number of Points: " + cluster_num_count[i] + "</b>";
+      stats += "<br>Number of Flights: " + cluster_counts.get(i+1) + "</b>";
+      stats += "<br><b>Average Speed (Knots)</b>";
+      stats += "<br>Mean: " + Math.round(ave_speed[i]) + ", SD: " + Math.round(std_speed[i]);
+      stats += "<br><b>Average Alt (Hundred Feet)</b>";
+      stats += "<br>Mean: " + Math.round(ave_alt[i]) + ", SD: " + Math.round(std_alt[i]);
+      stats += "<br><b>Flight Distance (Miles)</b>";
+      stats += "<br>Mean: " + Math.round(ave_dist[i]) + ", SD: " + Math.round(std_dist[i]);
+      stats += "<br>";
+    }
+    //document.getElementById("cluster_stats").innerHTML = stats;
+
+
+
+}
+
+
+
+	function draw_cluster(){
+        var t0 = performance.now();
+        var ws = new WebSocket("ws://dv8.osu.edu:{{port}}/websocket");
+        // ws = new WebSocket("ws://localhost:{{port}}/websocket");
+        var draw = false;
+        var data_load = false;
+        flight_cluster = new Map();
+        var thred = 0;
+        ws.onopen = function (e) {
+        	var option = prompt("Choose a similarity function: 1 for distance, 2 for cosine similarity");
+		  if(option==1){
+			  metric = clusteringMetric();
+
+			  if(metric == 2){
+				  thred = prompt("Choose a threshold, unit: nm");
+
+			  }
+			  var num_points = prompt("Choose point extraction factor (one point from every N points): ");
+              ws.send("cluster1"+","+thred+","+num_points+","+metric);
+		  }
+          if(option==2){
+          	  metric = clusteringMetric();
+          	  if(metric = 2){
+				  thred = prompt("Choose a threshold, range: [0,1]");
+			  }
+			  var num_points = prompt("Choose point extraction factor (one point from every N points): ");
+              ws.send("cluster2"+","+thred+","+num_points+","+metric);
+          }
+        };
+        ws.onmessage = function (message){
+          if(message.data==="Clustering Complete"){
+            //alert("clustering complete");
+            draw = true;
+          }
+        };
+        ws.onclose = function(){
+        if(draw){
+          d3.csv("/static/multipointviz/result.csv", function(data) // The main data of points will be loaded here.
+          {
+              data.forEach(function(d){
+                  flight_cluster.set(parseInt(d.flight_id), parseInt(d.cluster));
+              });
+        var last_fid = -1;
+        var cluster = -1;
+        var data_count = 0;
+        var keys = Object.keys(flight_cluster.entries);
+        cluster_counts = new Map();
+        _.each(fid_timeDimension.top(Infinity), function (d) {
+
+            if (parseInt(d.flight_id) != last_fid) {
+                cluster = flight_cluster.get(parseInt(d.flight_id));
+                d.cluster = cluster;
+                if (cluster_counts.has(cluster)) {
+                    cluster_counts.set(cluster, cluster_counts.get(cluster) + 1);
+                }
+                else {
+                    cluster_counts.set(cluster, 1);
+                }
+                last_fid = parseInt(d.flight_id);
+            } else {
+                d.cluster = cluster;
+            }
+            data_count ++;
+        });
+
+
+      for (var [key, val] of cluster_counts.entries()) {
+          cluster_list.push([val, key]);
+      }
+      var NUM_COLORS = 20;
+      for (var i=0; i<NUM_COLORS; i++){
+          if (i >= cluster_list.length){ break; }
+          top_clusters.set(cluster_list[i][1], i);
+      }
+      drawmap(fid_timeDimension);
+
+      var flight_count = fidGrouping.all().length;
+      last_fid = -1;
+      var index = 0;
+      var count = cluster_counts.size;
+      var speeds = new Array(count);
+      var cluster_num_count = new Array(count).fill(0);
+      for(i=0;i<count;i++){
+        speeds[i] = new Array(0);
+      }
+      var sum_speed = new Array(count);
+      var alt= new Array(count);
+      for(i=0;i<count;i++){
+        alt[i] = new Array(0);
+      }
+      var dist = new Array(count);
+      for(i=0;i<count;i++){
+        dist[i] = new Array(0);
+      }
+
+      var sum_alt = new Array(count);
+      var dist_sum = new Array(count);
+      var lat = new Array(count);
+      var lng = new Array(count);
+      var prv_lat = new Array(count);
+      var prv_lng = new Array(count);
+
+
+      var gc_dists = new Array(count);
+
+      var diffs = new Array(count);
+      var deviations = new Array(count);
+      var gc_dist = new Array(cluster_counts);
+      var hour = new Array(cluster_counts);
+      var prv_hour = new Array(cluster_counts);
+      var break_lat = new Array(cluster_counts);
+      var break_lng = new Array(cluster_counts);
+      var final_lat = new Array(cluster_counts);
+      var final_lng = new Array(cluster_counts);
+      var broken = new Array(cluster_counts);
+      var times = new Array(count);
+      var flight_hour = new Array(cluster_counts);
+      var flight_min = new Array(cluster_counts);
+      var dept_hour = new Array(cluster_counts);
+      var dept_min = new Array(cluster_counts);
+      var arr_hour = new Array(cluster_counts);
+      var arr_min = new Array(cluster_counts);
+      var final_hour = new Array(cluster_counts);
+      var final_min = new Array(cluster_counts);
+      var cluster = 0;
+      var point_speed = 0;
+      var total_speed = 0;
+      var point_alt = 0;
+      var total_alt = 0;
+      var point_count = 1;
+      var data_pointer = 0;
+      var point_lat = 0;
+      var point_lng = 0;
+      var point_dist = 0;
+      var prev_lat = 0;
+      var prev_lng = 0;
+      var total_dist = 0;
+      _.each(fid_timeDimension.top(Infinity), function (d) {
+
+          hour = parseInt(d.point_time.substring(0, 2));
+
+          if (d.flight_id != last_fid) {
+            if(data_pointer!=0){
+            cluster = flight_cluster.get(parseInt(d.flight_id)) - 1;
+            var avg_speed = total_speed / point_count;
+            var avg_alt  = total_alt / point_count;
+            var avg_dist = total_dist / point_count;
+            speeds[cluster].push(avg_speed);
+            alt[cluster].push(avg_alt);
+            dist[cluster].push(avg_dist);
+            total_speed = 0;
+            total_alt = 0;
+            total_dist = 0;
+            point_count = 1;
+            }else{
+              point_speed = parseInt(d.ground);
+              point_alt = parseInt(d.alt);
+              total_speed = total_speed + point_speed;
+              total_alt = total_alt + point_alt;
+              point_count++;
+            }
+
+          last_fid = d.flight_id;
+          }else{
+              point_speed = parseInt(d.ground);
+              point_alt = parseInt(d.alt);
+              total_speed = total_speed + point_speed;
+              total_alt = total_alt + point_alt;
+              point_lat = parseFloat(d.lat);
+              point_lng = parseFloat(d.lng);
+              point_dist = distance(prev_lat, prev_lng, point_lat, point_lat);
+              total_dist = total_dist + point_dist;
+              point_count++;
+              if(data_pointer==(data_count-1)){
+                var avg_speed = total_speed / point_count;
+                var avg_alt  = total_alt / point_count;
+                var avg_dist = total_dist / point_count;
+                speeds[cluster].push(avg_speed);
+                alt[cluster].push(avg_alt);
+                dist[cluster].push(avg_dist);
+              }
+          }
+          data_pointer++;
+          cluster_num_count[cluster] = cluster_num_count[cluster] + 1;
+      });
+      sum_speed = new Array(count).fill(0);
+      for (i = 0; i < count; i++) {
+        for(j = 0; j<speeds[i].length;j++){
+          sum_speed[i] = sum_speed[i] + speeds[i][j];
+        }
+      }
+      var ave_speed = new Array(count);
+      for(i=0;i<count;i++){
+        ave_speed[i] = sum_speed[i] / speeds[i].length;
+      }
+      var square_speed = new Array(count).fill(0);
+      for (i = 0; i < count; i++) {
+        for(j=0;j<speeds[i].length;j++){
+          square_speed[i] += Math.pow((speeds[i][j] - ave_speed[i]), 2);
+        }
+      }
+      var std_speed = new Array(count).fill(0);
+      for(i=0;i<count;i++){
+        std_speed[i] = (Math.sqrt(square_speed[i] / speeds[i].length));
+      }
+
+
+
+      sum_alt= new Array(count).fill(0);
+      for (i = 0; i < count; i++) {
+        for(j = 0; j<alt[i].length;j++){
+          sum_alt[i] = sum_alt[i] + alt[i][j];
+        }
+      }
+
+      var ave_alt = new Array(count).fill(0);
+      for(i=0;i<count;i++){
+        ave_alt[i] = sum_alt[i] / alt[i].length;
+      }
+
+      var square_alt = new Array(count).fill(0);
+      for (i = 0; i < count; i++) {
+          for(j=0;j<alt[i].length;j++){
+            square_alt[i] += Math.pow((alt[i][j] - ave_alt[i]), 2);
+          }
+      }
+
+      var std_alt = new Array(count).fill(0);
+      for(i=0;i<count;i++){
+        std_alt[i] = Math.sqrt(square_alt[i] / alt[i].length);
+      }
+
+      dist_sum= new Array(count).fill(0);
+      for (i = 0; i < count; i++) {
+        for(j = 0; j<dist[i].length;j++){
+          dist_sum[i] += dist[i][j];
+        }
+      }
+
+      var ave_dist = new Array(count).fill(0);
+      for(i=0;i<count;i++){
+        ave_dist[i] = dist_sum[i] / dist[i].length;
+      }
+
+      var square_dist = new Array(count).fill(0);
+      for (i = 0; i < count; i++) {
+          for(j=1;j<dist[i].length;j++){
+            square_dist[i] += Math.pow((dist[i][j] - ave_dist[i]), 2);
+          }
+      }
+
+      var std_dist = new Array(count).fill(0);
+      for(i=0;i<count;i++){
+        std_dist[i] = Math.sqrt(square_dist[i] / (dist[i].length));
+      }
+
+      stats = "<b>Cluster Summary</b>";
+      stats += "<br>";
+      for(i=0;i<count;i++){
+        var j = i+1;
+        stats += "<br><b>Cluster" + j + ": </b>";
+        stats += "<br>Number of Points: " + cluster_num_count[i] + "</b>";
+        stats += "<br>Number of Flights: " + cluster_counts.get(i+1) + "</b>";
+        stats += "<br><b>Average Speed (Knots)</b>";
+        stats += "<br>Mean: " + Math.round(ave_speed[i]) + ", SD: " + Math.round(std_speed[i]);
+        stats += "<br><b>Average Alt (Hundred Feet)</b>";
+        stats += "<br>Mean: " + Math.round(ave_alt[i]) + ", SD: " + Math.round(std_alt[i]);
+        stats += "<br><b>Flight Distance (Miles)</b>";
+        stats += "<br>Mean: " + Math.round(ave_dist[i]) + ", SD: " + Math.round(std_dist[i]);
+        stats += "<br>";
+      }
+      //document.getElementById("cluster_stats").innerHTML = stats;
+
+      var t1 = performance.now();
+      console.log("Python Clustering function takes " + ((t1 - t0)/1000).toFixed(2) + " seconds.");
+
+      });
+
+      }
+
+        }
+
+  }
+
+
+	function drawmap(fid_timeDimension) {
+
+      var circle;
+	  var polyline;
+
+
+      map.removeLayer(layerp);
+
+	  var legend = document.getElementById("legend");
+	  while (legend.firstChild) {
+		legend.removeChild(legend.firstChild);
+	  }
+	  document.getElementById('key').style.display = 'none';
+
+      layerp.clearLayers();
+
+
+
+        if(onlyPlan == 0 || onlyPlan == 2) {
+            var last_fid = -1;
+            var last_hour = 37;
+            var breakPoint = 0;
+            var first_point = 0;
+            var first_hex = 0;
+            var pointList = [-1, -1];
+            var hexColor = ""
+            var last_alt = 0;
+            added_is.clear();
+            if(color_scheme == 9 && cluster_draw){
+                draw_cluster();
+                //draw_cluster_js();
+                cluster_draw = false;
+            }
+            if(color_scheme == 10){
+              //draw_cluster();
+              var t0 = performance.now();
+              draw_cluster_js();
+              var t1 = performance.now();
+              console.log("Javascipt Clustering function takes " + ((t1 - t0)/1000).toFixed(2) + " seconds.");
+          }
+            _.each(fid_timeDimension.top(Infinity), function (d) {
+
+                var point = new L.LatLng(d.lat, d.lng);
+
+                var hexColor = "";
+                var alt_diff = d.alt - last_alt;
+                if (color_scheme == 0) {
+                    hexColor = range_hexcolor(d.alt / max_alt, true);
+                }
+                else if (color_scheme == 1) {
+                    hexColor = range_hexcolor((d.ground - min_speed) / (max_speed - min_speed), false);
+                }
+                else if (color_scheme == 2) {
+                    hexColor = distinct_hexcolor(top_airlines, d.icao.substring(0, 3));
+                }
+                else if (color_scheme == 3) {
+                    hexColor = distinct_hexcolor(top_aircraft, d.acft_type);
+                }
+                else if (color_scheme == 4) {
+                    hexColor = distinct_hexcolor(top_days, num_to_day.get(parseDate(d.dept_date_utc).getDay()));
+                }
+                else if (color_scheme == 5) {
+                    hexColor = distinct_hexcolor(top_dept_prts, d.dept_aprt);
+                }
+                else if (color_scheme == 6) {
+                    hexColor = distinct_hexcolor(top_arr_prts, d.arr_aprt);
+                }
+                else if (color_scheme == 7) {
+                    hexColor = range_hexcolor((1 - (Math.abs(d.alt - last_alt)) / (20)), false);
+                }
+                else if (color_scheme == 8) {
+                    hexColor = range_hexcolor((1 - (Math.abs(d.alt - last_alt)) / (2)), false);
+                }
+                else if (color_scheme == 9) {
+                    hexColor = distinct_hexcolor(top_clusters, d.cluster);
+                }
+                else if (color_scheme == 10) {
+                  hexColor = distinct_hexcolor(top_clusters, d.cluster);
+                }
+
+                //circle = L.circle(point, 700, { color: '#000000', fillColor: hexColor, fillOpacity: 0.8, stroke: false});
+                //circle.bindPopup("Flight <b>"+d.flight_id+"<br></b> From <b>" +d.dept_aprt+ "</b> to <b>" +d.arr_aprt+ "</b><br><a href='/single?flight_id="+d.flight_id+"' target=_blank>Focus on this Flight</a>")
+                //layerp.addLayer(circle);
+                last_alt = d.alt;
+
+                pointList[0] = pointList[1];
+                pointList[1] = point;
+                var intHour = parseInt(d.point_time.substring(0, 2));
+                if (d.flight_id == last_fid && last_hour - 12 < intHour) {
+                    polyline = new L.Polyline(pointList, {color: hexColor, weight: 6, opacity: 0.5, smoothFactor: 1})
+                        .bindPopup("Flight <b>" + d.flight_id + "<br></b>From <b>" + d.dept_aprt + "</b> to <b>" + d.arr_aprt + "</b><br><b>Airline: </b>" + d.icao + "<br><b>Aircraft: </b>" + d.acft_type +
+                            "<br><b>Alt: </b>" + parseFloat(d.alt) / 10 + " Thousand Feet<br><b>Alt Diff: </b>" + alt_diff + " Hundred Feet<br><b>Speed: </b>" + d.ground + " Knots<br><a href='/single?flight_id=" + d.flight_id + "&cache_path={{file_name.split('/')[2]}}' target=_blank>Focus on this Flight</a>");
+                    layerp.addLayer(polyline);
+                }
+                else if (d.flight_id != last_fid) {
+                    //new flight
+                    last_fid = d.flight_id;
+
+                    if (breakPoint != 0) {
+                        polyline = new L.Polyline([first_point, pointList[0]], {
+                            color: first_hex,
+                            weight: 6,
+                            opacity: 0.5,
+                            smoothFactor: 1
+                        });
+                        layerp.addLayer(polyline);
+                        breakPoint = 0;
+                    }
+                    first_point = point;
+                    first_hex = hexColor;
+                }
+                else {
+                    breakPoint = pointList[0];
+                }
+                last_hour = intHour;
+
+
+            });
+        }
+
+      map.addLayer(layerp);
+
+        var flight_count = 0;
+        last_fid = -1;
+        var index = 0;
+        var count = 0;
+        var maxspeed = 0;
+        var speeds = new Array(flight_count);
+        var speed_sum = 0;
+        var maxalt = 0;
+        var alts = new Array(flight_count);
+        var alt_sum = 0;
+        var point_count= 0;
+
+
+
+        _.each(fid_timeDimension.top(Infinity), function (d) {
+
+
+            //per flight
+            if (d.flight_id != last_fid) {
+                if (count > 0) {
+                    speeds[index] = speed_sum / count;
+                    alts[index] = alt_sum / count;
+                    index++;
+                }
+                point_count++;
+                flight_count++;
+                count = 1;
+                dist = 0;
+                if(parseInt(d.ground)>maxspeed){
+                    maxspeed = parseInt(d.ground);
+                }
+                if(parseInt(d.alt)>maxalt){
+                    maxalt = parseInt(d.alt);
+                }
+                speed_sum = parseInt(d.ground);
+                alt_sum = parseInt(d.alt);
+                last_fid = d.flight_id;
+            }  else {
+                point_count++;
+                count = count + 1;
+                speed_sum += parseInt(d.ground);
+                alt_sum += parseInt(d.alt);
+
+            }
+        });
+
+        speeds[index] = speed_sum / count;
+        alts[index] = alt_sum / count;
+
+
+        var sum_speed = 0;
+        for (i = 0; i < flight_count; i++) {
+            sum_speed = sum_speed + speeds[i];
+        }
+        var avg_speed = sum_speed / (flight_count);
+        var square_speed = 0;
+        for (i = 0; i < flight_count; i++) {
+            square_speed += Math.pow((speeds[i] - avg_speed), 2);
+        }
+        var std_speed = Math.sqrt(square_speed / flight_count);
+
+        var sum_alt = 0;
+        for (i = 0; i < flight_count; i++) {
+            sum_alt = sum_alt + alts[i];
+        }
+        var avg_alt = sum_alt / (flight_count);
+        var square_alt = 0;
+        for (i = 0; i < flight_count; i++) {
+            square_alt += Math.pow((alts[i] - avg_alt), 2);
+        }
+        var std_alt = Math.sqrt(square_alt / flight_count);
+
+
+
+
+        stats2 = "<b>Number of Points: </b>" + point_count;
+        stats2 += "<br><b>Number of Flights: </b>"+ flight_count;
+        stats2 += "<br><b>Speed (Knots)</b>";
+        stats2 += "<br>Mean: " + Math.round(avg_speed) + ", SD: " + Math.round(std_speed) + ", Max: " + maxspeed*flight_count/flight_count;
+        stats2 += "<br><b>Alt (Hundred Feet)</b>";
+        stats2 += "<br>Mean: " + Math.round(avg_alt) + ", SD: " + Math.round(std_alt) + ", Max: " + maxalt*flight_count/flight_count;
+
+
+        document.getElementById("stats2").innerHTML = stats2;
+
+        // DRAW PLAN ROUTE - BEGIN
+        if(plan_route == 1 && (onlyPlan == 0 || onlyPlan == 1)){
+            var route_polyline = L.polyline(route, {
+                color: 'Green',
+                opacity: 0.8,
+                weight: 5
+            }).addTo(map);
+            map.fitBounds(route_polyline.getBounds());
+            layerp.addLayer(route_polyline);
+        }
+        // DRAW PLAN ROUTE - END
+
+    }
+	</script>
+
+  <!-- Initial Data Read and Render -->
+  <script>
+  L_PREFER_CANVAS = true;
+
+  // (It's CSV, but GitHub Pages only gzip's JSON at the moment.)
+  d3.csv("{{file_name}}", function(error, flights) {
+
+
+    // A nest operator, for grouping the flight list.
+    var nestByDate = d3.nest()
+        .key(function(d) { return d3.time.day(parseDate(d.dept_date_utc)); });
+
+
+    // Create the crossfilter for the relevant dimensions and groups.
+    flight = crossfilter(flights);
+    all = flight.groupAll();
+
+     fidDimension = flight.dimension(function(d) {return d.flight_id});
+     fidGrouping = fidDimension.group(function(d) {return d});
+
+    // departure time
+     timeDimension = flight.dimension(function(d) {return parseHour(d.dept_time_utc)});
+     hourGrouping = timeDimension.group(function(d) {return d});
+
+    // arrival time
+     timeArrDimension = flight.dimension(function(d) {return parseHour(d.arr_time_utc)});
+     hourArrGrouping = timeArrDimension.group(function(d) {return d});
+
+    // point_time grouping
+     point_timeDimension = flight.dimension(function(d) {return parseHour(d.point_time)});
+     point_timeGrouping = point_timeDimension.group(function(d) {return d});
+
+	 fid_timeDimension = flight.dimension(function(d) {return d.flight_id + d.point_time});
+
+    // departure date
+     dateDimension = flight.dimension(function(d) {return parseDate(d.dept_date_utc)});
+     dateGrouping = dateDimension.group(function(d) {return d});
+
+	beginDate = dateGrouping.all()[0].key;
+
+     allDim = flight.dimension(function(d) {return d});
+
+	//iterate over all data
+	var last_fid = -1;
+	var min_lat = 99999, min_lng = 99999, max_lat = -99999, max_lng = -99999;
+     _.each(fidDimension.top(Infinity), function (d) {
+		//per point
+
+
+         dept_aprt = d.dept_aprt.toString().substring(0,3);
+         arr_aprt = d.arr_aprt.toString().substring(0,3);
+         routename = dept_aprt+"_"+arr_aprt;
+
+         if(!waypoints.has(routename)){
+             plan_route = 0;
+         }
+
+
+         if(plan_route == 1) {
+             route = waypoints.get(routename);
+         }
+
+		lat_temp = parseInt(d.lat);
+		lng_temp = parseInt(d.lng);
+		if (lat_temp > max_lat){
+				max_lat = d.lat;
+			}
+		if (lng_temp > max_lng){
+				max_lng = d.lng;
+			}
+		if (lng_temp < min_lng){
+				min_lng = d.lng;
+			}
+		if (lat_temp < min_lat){
+				min_lat = d.lat;
+			}
+
+		//alt
+		 var alt_temp = parseInt(d.alt)
+		 if(alt_temp > max_alt){
+			max_alt = alt_temp;
+		 }
+		 //speed
+		 var ground_temp = parseInt(d.ground);
+		 if (ground_temp > max_speed){
+			max_speed = ground_temp;
+		 }
+		 else if (ground_temp < min_speed){
+			min_speed = ground_temp;
+		 }
+
+		 //per flight
+		 if(d.flight_id != last_fid){
+			 //airline
+			 var airline_temp = d.icao.substring(0,3);
+			 if (airline_counts.has(airline_temp)){
+				airline_counts.set(airline_temp, airline_counts.get(airline_temp) + 1);
+			 }
+			 else{
+				airline_counts.set(airline_temp, 1);
+			 }
+			 //aircraft
+			 var craft_temp = d.acft_type;
+			 if (aircraft_counts.has(craft_temp)){
+				aircraft_counts.set(craft_temp, aircraft_counts.get(craft_temp) + 1);
+			 }
+			 else{
+				aircraft_counts.set(craft_temp, 1);
+			 }
+			 //dept airport
+			 var dept_temp = d.dept_aprt;
+			 if(dept_counts.has(dept_temp)){
+				dept_counts.set(dept_temp, dept_counts.get(dept_temp) + 1);
+			 }
+			 else {
+				dept_counts.set(dept_temp, 1);
+			 }
+			 //arr aprt
+			 var arr_temp = d.arr_aprt;
+			 if(arr_counts.has(arr_temp)) {
+				arr_counts.set(arr_temp, arr_counts.get(arr_temp) + 1);
+			 }
+			 else {
+				arr_counts.set(arr_temp, 1);
+			 }
+			 last_fid = d.flight_id;
+		 }
+      });
+
+      var flight_count = fidGrouping.all().length;
+      last_fid = -1;
+      var index = 0;
+      var count = 0;
+      var speeds = new Array(flight_count);
+      var speed_sum = 0;
+      var alts = new Array(flight_count);
+      var alt_sum = 0;
+      var lat = 0;
+      var lng = 0;
+      var prv_lat = 0;
+      var prv_lng = 0;
+      var first_lat = 0;
+      var first_lng = 0;
+      var last_lat = 0;
+      var last_lng = 0;
+      var dists = new Array(flight_count);
+      var gc_dists = new Array(flight_count);
+      var dist_sum = 0;
+      var diffs = new Array(flight_count);
+      var deviations = new Array(flight_count);
+      var gc_dist = 0;
+      var hour = 0;
+      var prv_hour = 37;
+      var break_lat = 0;
+      var break_lng = 0;
+      var final_lat = 0;
+      var final_lng = 0;
+      var broken = 0;
+      var times = new Array(flight_count);
+      var flight_hour = 0;
+      var flight_min = 0;
+      var dept_hour = 0;
+      var dept_min = 0;
+      var arr_hour = 0;
+      var arr_min = 0;
+      var final_hour = 0;
+      var final_min = 0;
+
+      _.each(fid_timeDimension.top(Infinity), function (d) {
+
+          hour = parseInt(d.point_time.substring(0, 2));
+          //per flight
+          if (d.flight_id != last_fid) {
+              if (count > 0 && broken == 0) {
+                  speeds[index] = speed_sum / count;
+                  alts[index] = alt_sum / count;
+                  dists[index] = dist_sum;
+                  gc_dist = distance(first_lat, first_lng, last_lat, last_lng);
+                  gc_dists[index] = gc_dist;
+                  diffs[index] = dist_sum - gc_dist;
+                  deviations[index] = (dist_sum - gc_dist) / gc_dist;
+                  if (arr_hour < dept_hour) {
+                      arr_hour = arr_hour + 24;
+                  }
+                  if (arr_min < dept_min) {
+                      arr_min = arr_min + 60;
+                      arr_hour = arr_hour - 1;
+                  }
+                  flight_min = arr_min - dept_min;
+                  flight_hour = arr_hour - dept_hour;
+                  times[index] = flight_hour * 60 + flight_min;
+                  index++;
+              } else if (broken == 1) {
+                  dist_sum += distance(last_lat, last_lng, break_lat, break_lng);
+                  speeds[index] = speed_sum / count;
+                  alts[index] = alt_sum / count;
+                  dists[index] = dist_sum;
+                  gc_dist = distance(first_lat, first_lng, final_lat, final_lng);
+                  gc_dists[index] = gc_dist;
+                  diffs[index] = dist_sum - gc_dist;
+                  deviations[index] = (dist_sum - gc_dist) / gc_dist;
+                  if (arr_hour < final_hour) {
+                      arr_hour = arr_hour + 24;
+                  }
+                  if (arr_min < final_min) {
+                      arr_min = arr_min + 60;
+                      arr_hour = arr_hour - 1;
+                  }
+                  flight_min = arr_min - final_min;
+                  flight_hour = arr_hour - final_hour;
+                  times[index] = flight_hour * 60 + flight_min;
+                  index++;
+                  broken = 0;
+              }
+              count = 1;
+              speed_sum = parseInt(d.ground);
+              alt_sum = parseInt(d.alt);
+              lat = d.lat;
+              lng = d.lng;
+              first_lat = lat;
+              first_lng = lng;
+              dist_sum = 0;
+              arr_hour = parseInt(d.point_time.substring(0, 2));
+              arr_min = parseInt(d.point_time.substring(3, 5));
+              last_fid = d.flight_id;
+          } else if (d.flight_id == last_fid && prv_hour - 12 >= hour) {
+              count = count + 1;
+              speed_sum += parseInt(d.ground);
+              alt_sum += parseInt(d.alt);
+              lat = d.lat;
+              lng = d.lng;
+              break_lat = first_lat;
+              break_lng = first_lng;
+              first_lat = lat;
+              first_lng = lng;
+              final_lat = last_lat;
+              final_lng = last_lng;
+              arr_hour = parseInt(d.point_time.substring(0, 2));
+              arr_min = parseInt(d.point_time.substring(3, 5));
+              final_hour = dept_hour;
+              final_min = dept_min;
+              broken = 1;
+          } else {
+              count = count + 1;
+              speed_sum += parseInt(d.ground);
+              alt_sum += parseInt(d.alt);
+              prv_lat = lat;
+              prv_lng = lng;
+              lat = d.lat;
+              lng = d.lng;
+              last_lat = lat;
+              last_lng = lng;
+              dist_sum += distance(prv_lat, prv_lng, lat, lng);
+              dept_hour = parseInt(d.point_time.substring(0, 2));
+              dept_min = parseInt(d.point_time.substring(3, 5));
+          }
+          prv_hour = hour;
+
+      });
+
+      if (broken == 0) {
+          speeds[index] = speed_sum / count;
+          alts[index] = alt_sum / count;
+          dists[index] = dist_sum;
+          gc_dist = distance(first_lat, first_lng, last_lat, last_lng);
+          gc_dists[index] = gc_dist;
+          diffs[index] = dist_sum - gc_dist;
+          deviations[index] = (dist_sum - gc_dist) / gc_dist;
+          if (arr_hour < dept_hour) {
+              arr_hour = arr_hour + 24;
+          }
+          if (arr_min < dept_min) {
+              arr_min = arr_min + 60;
+              arr_hour = arr_hour - 1;
+          }
+          flight_min = arr_min - dept_min;
+          flight_hour = arr_hour - dept_hour;
+          times[index] = flight_hour * 60 + flight_min;
+      } else if (broken == 1) {
+          dist_sum += distance(last_lat, last_lng, break_lat, break_lng);
+          speeds[index] = speed_sum / count;
+          alts[index] = alt_sum / count;
+          dists[index] = dist_sum;
+          gc_dist = distance(first_lat, first_lng, final_lat, final_lng);
+          gc_dists[index] = gc_dist;
+          diffs[index] = dist_sum - gc_dist;
+          deviations[index] = (dist_sum - gc_dist) / gc_dist;
+          if (arr_hour < final_hour) {
+              arr_hour = arr_hour + 24;
+          }
+          if (arr_min < final_min) {
+              arr_min = arr_min + 60;
+              arr_hour = arr_hour - 1;
+          }
+          flight_min = arr_min - final_min;
+          flight_hour = arr_hour - final_hour;
+          times[index] = flight_hour * 60 + flight_min;
+      }
+
+
+      var sum_speed = 0;
+      for (i = 0; i < flight_count; i++) {
+          sum_speed = sum_speed + speeds[i];
+      }
+      var avg_speed = sum_speed / (flight_count);
+      var square_speed = 0;
+      for (i = 0; i < flight_count; i++) {
+          square_speed += Math.pow((speeds[i] - avg_speed), 2);
+      }
+      var std_speed = Math.sqrt(square_speed / flight_count);
+
+      var sum_alt = 0;
+      for (i = 0; i < flight_count; i++) {
+          sum_alt = sum_alt + alts[i];
+      }
+      var avg_alt = sum_alt / (flight_count);
+      var square_alt = 0;
+      for (i = 0; i < flight_count; i++) {
+          square_alt += Math.pow((alts[i] - avg_alt), 2);
+      }
+      var std_alt = Math.sqrt(square_alt / flight_count);
+
+      var sum_dist = 0;
+      for (i = 0; i < flight_count; i++) {
+          sum_dist = sum_dist + dists[i];
+      }
+      var avg_dist = sum_dist / (flight_count);
+      var square_dist = 0;
+      for (i = 0; i < flight_count; i++) {
+          square_dist += Math.pow((dists[i] - avg_dist), 2);
+      }
+      var std_dist = Math.sqrt(square_dist / flight_count);
+
+      var sum_gc = 0;
+      for (i = 0; i < flight_count; i++) {
+          sum_gc = sum_gc + gc_dists[i];
+      }
+      var avg_gc = sum_gc / (flight_count);
+      var square_gc = 0;
+      for (i = 0; i < flight_count; i++) {
+          square_gc += Math.pow((gc_dists[i] - avg_gc), 2);
+      }
+      var std_gc = Math.sqrt(square_gc / flight_count);
+
+
+      if(plan_route == 1) {
+          var plan_distance = 0;
+          for (i = 1; i < route.length; i++) {
+              plan_distance += distance(route[i - 1][0], route[i - 1][1], route[i][0], route[i][1]);
+          }
+          var plan_deviation = (avg_dist-plan_distance)/plan_distance;
+      }
+
+      var sum_deviation = 0;
+      for (i = 0; i < flight_count; i++) {
+          sum_deviation = sum_deviation + deviations[i];
+      }
+      var avg_deviation = sum_deviation / (flight_count);
+      var square_deviation = 0;
+      for (i = 0; i < flight_count; i++) {
+          square_deviation += Math.pow((deviations[i] - avg_deviation), 2);
+      }
+      var std_deviation = Math.sqrt(square_deviation / flight_count);
+
+      var sum_time = 0;
+      for (i = 0; i < flight_count; i++) {
+          sum_time = sum_time + times[i];
+      }
+      var avg_time = sum_time / (flight_count);
+      var square_time = 0;
+      for (i = 0; i < flight_count; i++) {
+          square_time += Math.pow((times[i] - avg_time), 2);
+      }
+      var std_time = Math.sqrt(square_time / flight_count);
+
+
+      stats = "<b>Average Speed (Knots)</b>";
+      stats += "<br>Mean: " + Math.round(avg_speed) + ", SD: " + Math.round(std_speed);
+      stats += "<br><b>Average Alt (Hundred Feet)</b>";
+      stats += "<br>Mean: " + Math.round(avg_alt) + ", SD: " + Math.round(std_alt);
+      stats += "<br><b>Flight Time (Minutes)</b>";
+      stats += "<br>Mean: " + Math.round(avg_time) + ", SD: " + Math.round(std_time);
+      stats += "<br><b>Flight Distance (Miles)</b>";
+      stats += "<br>Mean: " + Math.round(avg_dist) + ", SD: " + Math.round(std_dist);
+      stats += "<br><b>Average GCD (Miles): </b>" + Math.round(avg_gc);
+      stats += "<br>Deviation with GCD: " + (Math.round(avg_deviation * 1000) / 10) + "%";
+      if(plan_route == 1){
+          stats += "<br><b>Plan Distance (Miles): </b>" + Math.round(plan_distance);
+          stats += "<br>Deviation with Plan: "+ (Math.round(plan_deviation * 1000) / 10) + "%";
+          stats += "<br>Deviation for Plan to GCD: "+ (Math.round((plan_distance-avg_gc)*1000/avg_gc)/10) + "%";
+      }
+
+
+      document.getElementById("stats").innerHTML = stats;
+
+
+	  map.fitBounds([[min_lat, min_lng], [max_lat, max_lng]]);
+
+	  //sort maps into lists
+	  for (var [key, val] of aircraft_counts.entries()) {
+		aircraft_list.push([val, key]);
+	  }
+	  for (var [key, val] of airline_counts.entries()) {
+		airline_list.push([val, key]);
+	  }
+	  for(var [key, val] of dept_counts.entries()) {
+		dept_list.push([val, key]);
+	  }
+	  for(var [key, val] of arr_counts.entries()) {
+		arr_list.push([val, key]);
+	  }
+	  aircraft_list.sort(tuple_reverse_order_compare);
+	  airline_list.sort(tuple_reverse_order_compare);
+	  dept_list.sort(tuple_reverse_order_compare);
+	  arr_list.sort(tuple_reverse_order_compare);
+	  //decide on colors
+	  var NUM_COLORS = 20;
+	  for (var i=0; i<NUM_COLORS; i++){
+		if (i >= airline_list.length){ break; }
+		top_airlines.set(airline_list[i][1], i);
+	  }
+	  for (var i=0; i<NUM_COLORS; i++){
+		if (i >= aircraft_list.length){ break; }
+		top_aircraft.set(aircraft_list[i][1], i);
+	  }
+	  for (var i=0; i<NUM_COLORS; i++){
+		if (i >= arr_list.length){ break; }
+		top_arr_prts.set(arr_list[i][1], i);
+	  }
+	  for (var i=0; i<NUM_COLORS; i++){
+		if (i >= dept_list.length){ break; }
+		top_dept_prts.set(dept_list[i][1], i);
+	  }
+
+
+	  //put a dummy point on the heat leayer so it can be added to the heatmap
+      heat.setLatLngs([{lat:0, lng:0}]);
+      heat.addTo(heatmap);
+
+
+
+    charts = [
+
+      barChart()
+          .dimension(timeDimension)
+          .group(hourGrouping)
+        .x(d3.scale.linear()
+          .domain([0, 23])
+          .rangeRound([0, 23 * 12])),
+		//.y(d3.scale.linear()
+		//	.range([100, 0])
+		//	.domain([0, 2000])
+		//.yaxis(d3.svg.axis().orient("right")
+		//	.tickValues,
+
+      barChart()
+          .dimension(timeArrDimension)
+          .group(hourArrGrouping)
+        .x(d3.scale.linear()
+          .domain([0, 23])
+          .rangeRound([0, 23 * 12])),
+
+      barChart()
+          .dimension(point_timeDimension)
+          .group(point_timeGrouping)
+        .x(d3.scale.linear()
+          .domain([0, 23])
+          .rangeRound([0, 23 * 12])),
+
+      barChart()
+          .dimension(dateDimension)
+          .group(dateGrouping)
+          .round(d3.time.day.round)
+        .x(d3.time.scale()
+          .domain([beginDate, endDate])
+          .rangeRound([0, 23*12]))
+    ];
+
+    // Given our array of charts, which we assume are in the same order as the
+    // .chart elements in the DOM, bind the charts to the DOM and render them.
+    // We also listen to the chart's brush events to update the display.
+    chart = d3.selectAll(".chart")
+        .data(charts)
+        .each(function(chart) { chart.on("brush", renderAll).on("brushend", renderAll); });
+
+    // Render the initial lists.
+    list = d3.selectAll(".list")
+        .data([flightList]);
+
+    // Render the total.
+    d3.selectAll("#total")
+        .text(formatNumber(flight.size()));
+
+    renderAll();
+
+
+	window.animator = new Animator(renderAll, charts, beginDate, endDate);
+
+
+    // Like d3.time.format, but faster
+	function flightList(div) {
+
+      var flightsByDate = nestByDate.entries(fidDimension.top(Infinity));
+
+	  lastFid = -1;
+	  flightsByDate.forEach(function(date){
+		i = 0;
+		while (i < date.values.length){
+			if (date.values[i].flight_id == lastFid){
+				date.values.splice(i,1);
+			}
+			else{
+				lastFid = date.values[i].flight_id;
+				i++;
+			}
+		}
+	  });
+
+      div.each(function() {
+        var date = d3.select(this).selectAll(".date")
+            .data(flightsByDate, function(d) { return d.key; });
+
+        date.enter().append("div")
+            .attr("class", "date");
+
+        date.exit().remove();
+
+        var flight = date.order().selectAll(".flight")
+            .data(function(d) { return d.values; }, function(d) { return d.flight_id; });
+
+        var flightEnter = flight.enter().append("div")
+            .attr("class", "flight");
+		//ADD data to each flight
+        flightEnter.append("pre")
+            .attr("class", "dept_aprt")
+			.text(function(d) { return d.dept_aprt + '  '; });
+
+        flightEnter.append("pre")
+            .attr("class", "dept_date")
+            .text(function(d) { return showDate(d.dept_date_utc) + '   '; });
+
+        flightEnter.append("pre")
+            .attr("class", "arr_aprt")
+            .text(function(d) { return d.arr_aprt + '   '; });
+
+        flightEnter.append("pre")
+            .attr("class", "view_link")
+            .append("pre")
+            .html(function(d) { return '<a href="/single?flight_id=' + d.flight_id + '&cache_path={{file_name.split("/")[2]}}" target=_blank>View</a>'; });
+
+        flight.exit().remove();
+
+        flight.order();
+      });
+    }
+
+  });
+  </script>
+
+
+
+
+  <!-- render functions -->
+  <script>
+  function renderAll_Loading(callback) {
+
+	var loading_icon = $('#loading_icon');
+	loading_icon.html('<div class="uil-spin-css center_lr center_tb" style="-webkit-transform:scale(0.6); position:absolute;"><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div><div><div></div></div></div>')
+	loading_icon.show(function(){
+
+		renderAll(callback);
+
+		loading_icon.html('');
+		loading_icon.hide();
+	});
+
+  }
+  function renderAll(callback) {
+
+	  chart && chart.each(render);
+	  if(listShown){
+		list.each(render);
+	  }
+      d3.select("#active").text(formatNumber(all.value()));
+      d3.selectAll("#totalflights").text(fidGrouping.all().length);
+
+	if (mapShown){
+      drawmap(fid_timeDimension);
+      console.log("draw");
+	}else{
+      drawheatmap(allDim);
+	}
+
+	console.log('render all');
+	callback && callback();
+  }
+  function render(method) {
+      d3.select(this).call(method);
+  }
+  </script>
+
+<!-- Bar Chart Creation -->
+  <script>
+  function barChart() {
+      if (!barChart.id) barChart.id = 0;
+
+      var margin = {top: 10, right: 10, bottom: 20, left: 10},
+          x,
+          y = d3.scale.linear().range([100, 0]),
+          id = barChart.id++,
+          axis = d3.svg.axis().orient("bottom"),
+		  yaxis = d3.svg.axis().orient("right"),
+          brush = d3.svg.brush(),
+          brushDirty,
+          dimension,
+          group,
+          round;
+
+      function chart(div) {
+        var width = x.range()[1],
+            height = y.range()[0];
+
+        if(x.hasOwnProperty("rangeBand"))
+        {
+          width = x.range()[x.range().length-1]+500;
+        }
+        x_global = x;
+        var topTick = group.top(1)[0].value;
+		console.log(topTick);
+        y.domain([0, topTick]);
+		yaxis.tickValues([0, topTick/2, topTick]);
+		yaxis.scale(y);
+
+        div && div.each(function() {
+          var div = d3.select(this),
+              g = div.select("g");
+
+          // Create the skeletal chart.
+          if (g.empty()) {
+            div.select(".title").append("a")
+                .attr("href", "javascript:animator.reset(" + id + ")")
+                .attr("class", "reset")
+                .text("reset")
+                .style("display", "none");
+
+            g = div.append("svg")
+				.attr("class", "chartSVG")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+              .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            g.append("clipPath")
+                .attr("id", "clip-" + id)
+              .append("rect")
+                .attr("width", width)
+                .attr("height", height);
+
+            g.selectAll(".bar")
+                .data(["background", "foreground"])
+              .enter().append("path")
+                .attr("class", function(d) { return d + " bar"; })
+                .datum(group.all());
+
+            g.selectAll(".foreground.bar")
+                .attr("clip-path", "url(#clip-" + id + ")");
+
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(axis);
+
+			g.append("g")
+                .attr("class", "axis")
+                .attr("transform", "translate(0,0)")
+                .call(yaxis);
+
+            // Initialize the brush component with pretty resize handles.
+            var gBrush = g.append("g").attr("class", "brush").call(brush);
+            gBrush.selectAll("rect").attr("height", height);
+            gBrush.selectAll(".resize").append("path").attr("d", resizePath);
+          }
+
+          // Only redraw the brush if set externally.
+          if (brushDirty) {
+            brushDirty = false;
+            g.selectAll(".brush").call(brush);
+            div.select(".title a").style("display", brush.empty() ? "none" : null);
+            if (brush.empty()) {
+              g.selectAll("#clip-" + id + " rect")
+                  .attr("x", 0)
+                  .attr("width", width);
+            } else {
+              var extent = brush.extent();
+              g.selectAll("#clip-" + id + " rect")
+                  .attr("x", x(extent[0]))
+                  .attr("width", x(extent[1]) - x(extent[0]));
+            }
+          }
+
+          g.selectAll(".bar").attr("d", barPath);
+        });
+
+        function barPath(groups) {
+          var path = [],
+              i = -1,
+              n = groups.length,
+              d;
+          while (++i < n) {
+            d = groups[i];
+            path.push("M", x(d.key), ",", height, "V", y(d.value), "h9V", height);
+          }
+          return path.join("");
+        }
+
+        function resizePath(d) {
+          var e = +(d == "e"),
+              x = e ? 1 : -1,
+              y = height / 3;
+          return "M" + (.5 * x) + "," + y
+              + "A6,6 0 0 " + e + " " + (6.5 * x) + "," + (y + 6)
+              + "V" + (2 * y - 6)
+              + "A6,6 0 0 " + e + " " + (.5 * x) + "," + (2 * y)
+              + "Z"
+              + "M" + (2.5 * x) + "," + (y + 8)
+              + "V" + (2 * y - 8)
+              + "M" + (4.5 * x) + "," + (y + 8)
+              + "V" + (2 * y - 8);
+        }
+      }
+
+      brush.on("brushstart.chart", function() {
+        var div = d3.select(this.parentNode.parentNode.parentNode);
+        div.select(".title a").style("display", null);
+      });
+
+      brush.on("brush.chart", function() {
+        var g = d3.select(this.parentNode),
+            extent = brush.extent();
+        if (round) g.select(".brush")
+            .call(brush.extent(extent = extent.map(round)))
+          .selectAll(".resize")
+            .style("display", null);
+        g.select("#clip-" + id + " rect")
+            .attr("x", x(extent[0]))
+            .attr("width", x(extent[1]) - x(extent[0]));
+        dimension.filterRange(extent);
+      });
+
+      brush.on("brushend.chart", function() {
+        if (brush.empty()) {
+          var div = d3.select(this.parentNode.parentNode.parentNode);
+          div.select(".title a").style("display", "none");
+          div.select("#clip-" + id + " rect").attr("x", null).attr("width", "100%");
+          dimension.filterAll();
+        }
+      });
+
+      chart.margin = function(_) {
+        if (!arguments.length) return margin;
+        margin = _;
+        return chart;
+      };
+
+      chart.x = function(_) {
+        if (!arguments.length) return x;
+        x = _;
+        axis.scale(x);
+        brush.x(x);
+        return chart;
+      };
+
+      chart.y = function(_) {
+        if (!arguments.length) return y;
+        y = _;
+        return chart;
+      };
+
+      chart.dimension = function(_) {
+        if (!arguments.length) return dimension;
+        dimension = _;
+        return chart;
+      };
+
+      chart.filter = function(_) {
+        if (_) {
+          brush.extent(_);
+          dimension.filterRange(_);
+        } else {
+          brush.clear();
+          dimension.filterAll();
+        }
+        brushDirty = true;
+        return chart;
+      };
+
+      chart.group = function(_) {
+        if (!arguments.length) return group;
+        group = _;
+        return chart;
+      };
+
+      chart.round = function(_) {
+        if (!arguments.length) return round;
+        round = _;
+        return chart;
+      };
+
+      return d3.rebind(chart, brush, "on");
+    }
+	</script>
+
+	<script>
+		function generate_stat_table() {
+
+        }
+
+</html>

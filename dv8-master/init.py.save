@@ -1,0 +1,51 @@
+import tornado.ioloop
+import tornado.web
+import os.path
+from pquery import *
+
+class MainHandler(tornado.web.RequestHandler) :
+	def get(self):
+		self.redirect('static/main/index.html')
+
+class SingleHandler(tornado.web.RequestHandler) :
+	def get(self):
+		flight_id = self.get_argument("flight_id")
+		
+		parameterized_query(flight_id=flight_id, filename="static/singleflightviz/data.csv", single=True)
+
+		self.redirect("static/singleflightviz/index.html")
+
+class MultiHandler(tornado.web.RequestHandler) :
+	def get(self):
+		dept_aprt = self.get_argument("from_aprt")
+		arr_aprt = self.get_argument("to_aprt")
+		from_date = self.get_argument("from_date")
+		to_date = self.get_argument("to_date")
+		
+		parameterized_query(dept_aprt=dept_aprt, arr_aprt=arr_aprt, from_date=from_date, to_date=to_date, filename="static/multiflightviz/data.csv")
+
+		self.redirect("static/multiflightviz/index.html")
+
+class NetJetHandler(tornado.web.RequestHandler) :
+	def get(self):
+                parameterized_query()
+
+                self.redirect("static/multiflightviz/index.html")
+		
+settings = dict(
+	template_path = os.path.join(os.path.dirname(__file__), "templates"),
+	static_path = os.path.join(os.path.dirname(__file__), "static"),
+	debug = True
+)
+		
+application = tornado.web.Application([
+	(r"/", MainHandler),
+	(r"/single", SingleHandler),
+	(r"/multi", MultiHandler),
+	(r'/static/(.*)', tornado.web.StaticFileHandler, {'path': settings["static_path"]}),
+], **settings)
+
+if __name__ == "__main__":
+	print "Server running ..."
+	application.listen(8888)
+	tornado.ioloop.IOLoop.instance().start()

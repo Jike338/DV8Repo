@@ -1,0 +1,25 @@
+#This assumes the order in the database is naturally chronological. There is no way to directly order by chronological
+#idea: set hash=0 before jumps in point_time
+
+#sort of leans on the fact that the points are ordered chronologically in the table. This is not gauranteed, though, which is bad
+
+create table ram_points_hash as (select flight_id, point_time, lat, lng, alt, ground, ROW_NUMBER() over (order by 0)-1 as rn, 
+(ROW_NUMBER() over (order by 0)-1) % 95 AS hash from ramtemp limit 100);
+
+create table ram_points_hash TABLESPACE netjetts as (select flight_id, point_time, lat, lng, alt, ground, ROW_NUMBER() over (order by 0)-1 as rn, 
+(ROW_NUMBER() over (order by 0)-1) % 95 + flight_id*100 AS hash from points limit 100);
+
+update point_hash set hash = -1 where (flight_id, rn) in (select flight_id, min(rn) as rn from point_hash group by flight_id);
+
+update point_hash set hash = -1 where (flight_id, rn) in (select flight_id, max(rn) as rn from point_hash group by flight_id);
+
+delete rn column if desired
+
+
+NEW
+from command line:
+psql -c 'create table all_points_hash tablespace spacetime as (select flight_id, point_time, lat, lng, alt, ground, ROW_NUMBER() over (order by 0)-1 as rn, (ROW_NUMBER() over (order by 0)-1) % 200 + flight_id*1000 as hash from all_points)' spacetime
+
+
+SET TOP TICK OF FIRST CHART
+chart[0][0].getElementsByClassName('tick')[14].children[1].innerHTML = 10;

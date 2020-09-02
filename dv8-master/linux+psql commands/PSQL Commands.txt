@@ -1,0 +1,11 @@
+login as postgres user:
+sudo -u postgres -i
+
+dump table
+pg_dump -C -t table_name db_name > file_name.sql
+
+nohup copy file from teal in background
+nohup sshpass -p "[password]" scp -C nick@teal.cse.ohio-state.edu:/bighome/behrooz/netjets/trans.sql . >/dev/null 2>&1 &
+
+make table from dump
+psql spacetime < file_name.sql

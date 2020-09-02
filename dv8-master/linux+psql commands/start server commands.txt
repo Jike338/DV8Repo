@@ -1,0 +1,23 @@
+to start server:
+run:
+	sudo python3 init.py 80 > /dev/null 2>&1
+	^Z (ctrl+Z)
+output:
+	[NUM]+ stopped --whatever--
+run:
+	disown -h %[NUM]
+	bg [NUM]
+output:
+	[NUM]+ sudo python3... &
+server is running
+
+
+to kill server:
+run: 
+	ps aux | grep python
+output:
+	list of running python programs
+	one of these will be the server running
+	the second column is the pid
+run:
+	sudo kill [pid]

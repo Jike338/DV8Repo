@@ -1,0 +1,264 @@
+<html>
+<head>
+<meta charset=utf-8 />
+<title>DV8 Flight Visualizer</title>
+
+	<link rel="stylesheet" href="{{static_url('js/onscreenkeyboard-master/css/jsKeyboard.css')}}" />
+
+	<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="https://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.0/themes/smoothness/jquery-ui.css">
+	<link href="static/main/css/jumbotron-narrow.css" rel="stylesheet">
+	<script type="text/javascript" src="static/main/js/jquery.autocomplete.min.js"></script>
+	<script type="text/javascript" src="static/main/js/arpt_codes_autocomplete.js"></script>
+
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
+	<link rel="stylesheet" href="{{ static_url('src/leaflet-areaselect.js') }}" />
+
+
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pure/1.0.0/pure-min.css">
+	<link rel="stylesheet" type="text/css" href="{{ static_url('bootstrap/css/bootstrap.min.css') }}">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+	<!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>-->
+	<script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>
+	<script src="{{ static_url('src/leaflet-areaselect.js') }}"></script>
+
+	<style>
+		a, button, .button{
+			pointer-events:auto;
+		}
+		#virtualKeyboard{
+			pointer-events:none;
+			left: 10%;
+		}
+
+		#map {
+			position: absolute;
+			top: 10%;
+			right: 5%;
+			width: 1000px;
+			height: 500px;
+			border-style: solid;
+		}
+
+		#map_button{
+			position: absolute;
+			top: 5%;
+			right: 5%;
+		}
+
+
+
+		@font-face
+			{
+		    font-family: raleway;
+		    src: url(static/main/css/raleway/Raleway-Regular.ttf);
+			}
+		body
+			{
+			margin: 10px; 
+			padding: 10px;
+			font-family: 'raleway';
+			}
+			.alert-warning{background-color:#f60833;border-color:#000000}
+			.alert-warning hr{border-top-color:#f7e1b5}
+			.alert{padding:15px;margin-bottom:20px;border:1px solid transparent;border-radius:4px}.alert h4{margin-top:0;color:inherit}
+		.footer {
+		   position:absolute;
+		   bottom:0;
+		   width:100%;
+		   height:60px;   /* Height of the footer */
+		}
+		#logo {
+			position: absolute;
+			bottom: 1%;
+			left: 1%;
+		}
+
+	</style>
+	<script>
+		$(function() {
+			$( ".datepicker" ).datepicker();
+		});
+	</script>
+	
+	
+	<script type="text/javascript" src="{{ static_url('js/onscreenkeyboard-master/jsKeyboard.js') }}"></script>
+	<script type="text/javascript" src="{{ static_url('js/onscreenkeyboard-master/js/main.js') }}"></script>
+	
+</head>
+
+<body>
+	<img src="{{ static_url('resources/logo.jpg') }}" alt="DV8 inc." width="400" height="200">
+	<h1>DV8 Flight Visualizer</h1>
+	<h4>Production Version Release 1.3</h4>
+	<h4>Last software update: July 3, 2020</h4>
+	<form class="pure-form" action="/multi" method="get" style="position:absolute">
+    <fieldset>
+        <!--<p><input name="flight_id" type="text" placeholder="Unique Flight Identifier" size="40"></p>-->
+		<p>
+			<input name="airline" type="text" placeholder="Airline ICAO ID" size="40"/>
+			<span style="font-size:50%; text-decoration-line: underline;" title="Use % as a placeholder for any string"> REGEX?</Span>
+		</p>
+		<p>
+			<input name="aircraft" type="text" placeholder="Aircraft Type" size="40"/>
+		</p>
+        <p id="dept_aprt_p">
+        	<input name="from_aprt" type="text" placeholder="Departure Airport" size="15" id="autocomplete">
+			<!--<input type='hidden' value='off' name='dept_nearby'>
+        	<input name="dept_nearby" type="checkbox"> Consider nearby airports to departure-->
+			<button name="add_dept" type="button" onclick="addDeptAprt();">Add Another Departing Airport</button> or </p>
+			<p>Lat: <input id = "dept_lat_min" name="dept_lat_min" type="text" placeholder="lat_min: 0-90" size="15" >
+			- <input id = "dept_lat_max" name="dept_lat_max" type="text" placeholder="lat_max: 0-90" size="15" >
+			, Lng: <input id = "dept_lng_min" name="dept_lng_min" type="text" placeholder="lng_min: 0-180" size="15" >
+			- <input id = "dept_lng_max" name="dept_lng_max" type="text" placeholder="lng_max: 0-180" size="15" >
+        </p>
+        <p id="arr_aprt_p">
+			<input name="to_aprt" type="text" placeholder="Arrival Airport" size="15" id="autocomplete2">&nbsp;
+			<!--<input type='hidden' value='off' name='arr_nearby'>
+        	<input name="arr_nearby" type="checkbox"> Consider nearby airports to arrival-->
+			<button name="add_arr" type="button" onclick="addArrAprt();">Add Another Arriving Airport</button> or </p>
+			 <p>Lat: <input id = "arr_lat_min" name="arr_lat_min" type="text" placeholder="lat_min:0-90" size="15" >
+             - <input id = "arr_lat_max" name="arr_lat_max" type="text" placeholder="lat_max: 0-90" size="15" >
+             , Lng: <input id = "arr_lng_min" name="arr_lng_min" type="text" placeholder="lng_min: 0-180" size="15" >
+             - <input id = "arr_lng_max" name="arr_lng_max" type="text" placeholder="lng_max: 0-180" size="15" >
+        </p>
+        <p id="date_picker_p">
+        	<input name = "from_date" type="text" placeholder="mm/dd/yyyy"  size = "20" class="datepicker"> &nbsp;
+			 - <input name = "to_date" type="text" placeholder="mm/dd/yyyy"   size="20" class="datepicker">
+			<button name="add_date" type="button" onclick="addDateRange();">Add Another Date Range</button>
+        </p>
+		<p>Year in use: 2014</p>
+		<p>
+			<input type="checkbox" name="demo_data_check"> Use Demo Data
+		</p>
+		<!--
+        <p>
+		<select onchange="this.options[this.selectedIndex].value && (window.location = this.options[this.selectedIndex].value);">
+			<option value="">Jump to example visualization...</option>
+			<option value="http://localhost:{{port}}/DV8/multi?flight_id=&from_aprt=AGS&dept_nearby=off&to_aprt=&arr_nearby=off&from_date=4%2F1%2F2012&to_date=4%2F30%2F2012&show_points=off&mode=points">2012 PGA Masters Tournament</option>
+			<option value="http://localhost:{{port}}/DV8/multi?flight_id=&from_aprt=AGS&dept_nearby=off&to_aprt=&arr_nearby=off&from_date=4%2F1%2F2013&to_date=4%2F30%2F2013&show_points=off&mode=points">2013 PGA Masters Tournament</option>
+			<option value="http://localhost:{{port}}/DV8/multi?flight_id=&from_aprt=AGS&dept_nearby=off&to_aprt=&arr_nearby=off&from_date=4%2F1%2F2014&to_date=4%2F30%2F2014&show_points=off&mode=points">2014 PGA Masters Tournament</option>
+			<option value="/netjetsviz">All NetJets Flights</option>
+			<option value="/netjetsgeoviz">All NetJets Flights + Heatmap</option>
+		</select>
+		</p>
+		-->
+        <p>
+        	<!--<button type="button" name="mode" value="flights" class="pure-button pure-button-primary">Visualize Flights</button>-->
+        	<button type="submit" name="mode" value="points" class="pure-button pure-button-primary">Visualize Points</button>
+        </p>
+		<p>
+			{%if error != ""%}
+			<div class="container jumbotron alert alert-warning">
+				<strong>Error: </strong> {{error}}
+			</div>
+			{%end%}
+		</p>
+
+    </fieldset>
+	</form>
+	<div id = 'logo'>
+		<img src="{{ static_url('resources/osu.jpg') }}"  width="200" height="80">
+		<img src="{{ static_url('resources/netjets.jpg') }}" width="160" height="80">
+	</div>
+
+	<div id="map">	</div>
+
+	<div id = "map_button" class = "dropdown" style="display:inline">
+		<button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Select Area  <span class='caret'></span></button>
+		<ul class="dropdown-menu">
+			<li><a onclick="javascript:SelectArea = 1;">Departure</a></li>
+			<li><a onclick="javascript:SelectArea = 2;">Arrival</a></li>
+		</ul>
+	</div>
+
+
+	<!-- virtual keyboard <div id="virtualKeyboard" style="position:absolute"></div> -->
+
+<p><a class="footer" href="static/main/about.html">About SpaceTime Project</a></b></p>
+
+
+</body>
+
+<!-- on load, load keyboard
+<script>
+ $(document).ready(function() {
+	 $("input").click(function () {
+		document.getElementById('virtualKeyboard').style.display = 'block';
+	});
+ });
+</script>
+-->
+<script>
+
+    // initialize map
+    var map = L.map('map').setView([39.98912,-98.0068], 4);
+    L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    var SelectArea = 0;
+
+    var areaSelect = L.areaSelect({width:1000, height:500});
+    areaSelect.addTo(map);
+    areaSelect.on("change", function() {
+        var bounds = this.getBounds();
+
+        if(SelectArea == 1) {
+            $("#dept_lat_min").val(Math.abs(bounds.getSouthWest().lat).toFixed(4));
+            $("#dept_lat_max").val(Math.abs(bounds.getNorthEast().lat).toFixed(4));
+            $("#dept_lng_min").val(Math.abs(bounds.getNorthEast().lng).toFixed(4));
+            $("#dept_lng_max").val(Math.abs(bounds.getSouthWest().lng).toFixed(4));
+        }else if (SelectArea == 2){
+            $("#arr_lat_min").val(Math.abs(bounds.getSouthWest().lat).toFixed(4));
+            $("#arr_lat_max").val(Math.abs(bounds.getNorthEast().lat).toFixed(4));
+            $("#arr_lng_min").val(Math.abs(bounds.getNorthEast().lng).toFixed(4));
+            $("#arr_lng_max").val(Math.abs(bounds.getSouthWest().lng).toFixed(4));
+		}
+    });
+
+
+
+</script>
+
+<script>
+	function addArrAprt() {
+		var elements = document.getElementsByName("to_aprt");
+		var num = elements.length;
+		if(elements[num-1].value !=""){
+			var para = document.createElement("p");
+			para.innerHTML = "<input name=\"to_aprt" +num+ "\" type=\"text\" placeholder=\"Arrival Airport\" size=\"15\" value=\""+elements[num-1].value+"\"> &nbsp;";
+			
+			document.getElementById("arr_aprt_p").appendChild(para);
+		}
+		elements[0].value = "";
+	}
+	function addDeptAprt() {
+		var elements = document.getElementsByName("from_aprt");
+		var num = elements.length;
+		if(elements[num-1].value !=""){
+			var para = document.createElement("p");
+			para.innerHTML = "<input name=\"from_aprt" +num+ "\" type=\"text\" placeholder=\"Departure Airport\" size=\"15\" value=\""+elements[num-1].value+"\"> &nbsp;";
+			
+			document.getElementById("dept_aprt_p").appendChild(para);
+		}
+		elements[0].value = "";
+	}
+	function addDateRange() {
+		var elements = document.getElementsByName("from_date");
+		var num = elements.length;
+		
+		var para = document.createElement("p");
+		para.innerHTML = "<input name = \"from_date" + num + "\" type=\"text\" placeholder=\"Begin Date\" value=\"4/1/2014\" size = \"20\" class=\"datepicker\"> &nbsp;";
+		para.innerHTML += " <input name = \"to_date" + num + "\" type=\"text\" placeholder=\"End Date\"  value=\"4/30/2014\" size=\"20\" class=\"datepicker\">";
+		
+		document.getElementById("date_picker_p").appendChild(para);
+		
+		$( ".datepicker" ).datepicker();
+	}
+	
+	
+</script>
+</html>

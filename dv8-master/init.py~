@@ -1,0 +1,94 @@
+import tornado.ioloop
+import tornado.web
+import os.path
+from pquery import *
+import sys
+
+class MainHandler(tornado.web.RequestHandler) :
+	def get(self):
+		self.redirect('static/main/index.html')
+
+class SingleHandler(tornado.web.RequestHandler) :
+	def get(self):
+		flight_id = self.get_argument("flight_id")
+		
+#		parameterized_query(flight_id=flight_id, file_name="static/singleflightviz/data.csv", single=True)
+		status = points(flight_id=flight_id, file_name="static/singleflightviz/data.csv", table_name="points")
+
+
+		self.redirect("static/singleflightviz/index.html")
+
+class MultiHandler(tornado.web.RequestHandler) :
+	def get(self):
+		dept_aprt = self.get_argument("from_aprt")
+		arr_aprt = self.get_argument("to_aprt")
+		from_date = self.get_argument("from_date")
+		to_date = self.get_argument("to_date")
+		
+		status = parameterized_query(dept_aprt=dept_aprt, arr_aprt=arr_aprt, from_date=from_date, to_date=to_date, file_name="static/multipointviz/data.csv")
+#		status = flights(dept_aprt=dept_aprt, arr_aprt=arr_aprt, from_date=from_date, to_date=to_date, file_name="static/multiflightviz/data.csv", table_name="dflights")
+
+		if status == -1:
+			self.redirect("static/main/index.html")
+		else:
+			self.redirect("static/multipointviz/index.html")
+
+class NextHandler(tornado.web.RequestHandler) :
+	def get(self):
+		dept_aprt = self.get_argument("dept_aprt")
+		arr_aprt = self.get_argument("arr_aprt")
+		after_date = self.get_argument("after_date")
+		
+		status = next_flight(dept_aprt=dept_aprt, arr_aprt=arr_aprt, after_date=after_date, file_name="static/singleflightviz/data.csv")
+
+		if status == -1:
+			self.redirect("static/main/index.html")
+		else:
+			self.redirect("static/singleflightviz/index.html")
+		
+
+class NetjetsMultiHandler(tornado.web.RequestHandler) :
+	def get(self):
+		status = netjets_multi(file_name="static/netjet_multi/data.csv")
+
+		if status == -1:
+			self.redirect("static/main/index.html")
+		else:
+			self.redirect("static/netjet_multi/index.html")
+
+class NetjetsSingleHandler(tornado.web.RequestHandler) :
+	def get(self):
+		flight_id = self.get_argument("flight_id")
+
+		status = points(flight_id=flight_id, file_name="static/singleflightviz/data.csv", table_name="netjets_points")
+
+		if status == -1:
+			self.redirect("static/main/index.html")
+		else:
+			self.redirect("static/singleflightviz/index.html")
+		
+settings = dict(
+	template_path = os.path.join(os.path.dirname(__file__), "templates"),
+	static_path = os.path.join(os.path.dirname(__file__), "static"),
+	debug = True
+)
+		
+application = tornado.web.Application([
+	(r"/", MainHandler),
+	(r"/single", SingleHandler),
+	(r"/multi", MultiHandler),
+	(r"/next", NextHandler),
+	(r"/netjetsmulti", NetjetsMultiHandler),
+	(r"/netjetssingle", NetjetsSingleHandler),
+	(r'/static/(.*)', tornado.web.StaticFileHandler, {'path': settings["static_path"]}),
+], **settings)
+
+if __name__ == "__main__":
+	port = 8888
+	if len(sys.argv) > 1:
+		print "Alternate port specifed: %s" % sys.argv[1]
+		port = sys.argv[1]
+
+	application.listen(port)
+	print "Server running on port %s ..." % port
+	tornado.ioloop.IOLoop.instance().start()

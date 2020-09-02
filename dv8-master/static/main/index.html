@@ -1,0 +1,80 @@
+<html>
+<head>
+<meta charset=utf-8 />
+<title>ASDI Flight Visualizer TEST</title>
+	<script src="http://code.jquery.com/jquery-1.10.2.js"></script>
+	<script src="http://code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+	<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.0/themes/smoothness/jquery-ui.css">
+	<link href="css/jumbotron-narrow.css" rel="stylesheet">
+	<script type="text/javascript" src="js/jquery.autocomplete.min.js"></script>
+	<script type="text/javascript" src="js/arpt_codes_autocomplete.js"></script>
+	<link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+	<style>
+		@font-face
+			{
+		    font-family: raleway;
+		    src: url(css/raleway/Raleway-Regular.ttf);
+			}
+		body
+			{
+			margin: 10px; 
+			padding: 10px;
+			font-family: 'raleway';
+			}
+	</style>
+	<script>
+		$(function() {
+			$( ".datepicker" ).datepicker();
+		});
+	</script>
+</head>
+
+<body>
+	<h1>ASDI Flight Visualizer TEST</h1>
+	<form class="pure-form" action="/multi" method="get">
+    <fieldset>
+    <legend>
+		Please specify your desiderata below. 
+		<a href="../../multi?flight_id=&from_aprt=AGS&to_aprt=&from_date=4/1/2014&to_date=04/30/2014&mode=points">
+			See an example of flights during the 2014 Masters Tournament.
+		</a>
+	</legend>
+        <p><input name="flight_id" type="text" placeholder="Unique Flight Identifier" size="40"></p>
+        <p>
+        	<input name="from_aprt" type="text" placeholder="Departure Airport" size="15" id="autocomplete"> &nbsp;
+        	<input type='hidden' value='off' name='dept_nearby'>
+        	<input name="dept_nearby" type="checkbox"> Consider nearby airports to departure
+        </p>
+        <p>
+			<input name="to_aprt" type="text" placeholder="Arrival Airport" size="15" id="autocomplete2"> &nbsp;
+			<input type='hidden' value='off' name='arr_nearby'>
+        	<input name="arr_nearby" type="checkbox"> Consider nearby airports to arrival
+			<button name="add_arr" onclick="addArrAprt();">Add Another Airport</button>
+        </p>
+        <p>
+        	<input name = "from_date" type="text" placeholder="Begin Date" size = "20" class="datepicker"> &nbsp;
+			<input name = "to_date" type="text" placeholder="End Date"  size="20" class="datepicker">
+        </p>
+        <p>
+        	<button type="submit" name="mode" value="flights" class="pure-button pure-button-primary">Visualize Flights</button>
+        	<button type="submit" name="mode" value="points" class="pure-button pure-button-primary">Visualize Flights + Heatmap</button>
+        </p>
+    </fieldset>
+</form>
+
+<p><a href="about.html">About SpaceTime Project</a></b>
+
+</body>
+<script>
+	var arr_aprts = [];
+	
+	function addArrAprt() {
+		var element = document.getElementsByName("to_aprt");
+		arr_aprts.push(element[0].value);
+		element[0].value = "";
+		console.log(arr_aprts);
+	}
+</script>
+	
+
+</html>

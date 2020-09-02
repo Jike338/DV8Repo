@@ -1,0 +1,302 @@
+<html>
+  <head>
+    <meta charset=utf-8 />
+    <title>Single Flight Visualizer</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.mapbox.com/mapbox.js/v2.2.3/mapbox.js'></script>
+    <script type="text/javascript" src="d3.v2.min.js"></script>
+    <link href='https://api.mapbox.com/mapbox.js/v2.2.3/mapbox.css' rel='stylesheet' />
+    <style>
+      body { margin:10; padding:10; }
+      #map {  height:100%; width:100%; border-style: solid;}
+    </style>
+  </head>
+  <body>
+    <div id='map'></div>
+    <script>
+
+    // MAP INITIALIZATION
+    L.mapbox.accessToken = 'pk.eyJ1IjoiYmVocm9vem9taWR2YXIiLCJhIjoiY2lpOTJneGpyMDAyNXZ1a29kZWN0cXk2ZiJ9.zGrpksooywrH3DjawX9u5w';
+    var mapboxTiles = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + L.mapbox.accessToken,
+    {
+      attribution: '<a href="http://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+    });
+    var layer = L.FeatureGroup();
+    var map = L.map('map').addLayer(mapboxTiles).setView([39.98912,-83.0068], 4);
+    var circle;
+    
+    // ### CONFIG ###
+    var waypoint_data_available = false; // It is true if route data is available, false otherwise
+    // ### CONFIG ###
+
+    function humanDate(d) {
+      return d.substring(4, 6)+"/"+d.substring(6, 8)+"/"+d.substring(0, 4);
+    }
+
+    d3.csv("data.csv", function(data) // The main data of points will be loaded here.
+    {
+      // GET DEPARTURE AND ARRIVAL AIRPORTS - BEGIN
+      var flight_id = data[0].flight_id;
+      var last_index = parseInt(data.length)-1;
+      dept_aprt = data[0].dept_aprt;
+      dept_date = data[0].dept_date_utc;
+      dept_time = data[0].dept_time_utc;
+      dept_lat = data[0].lat;
+      dept_lng = data[0].lng;
+      arr_aprt = data[last_index].arr_aprt;
+      arr_date = data[last_index].arr_date_utc;
+      arr_time = data[last_index].arr_time_utc;
+      arr_lat = data[last_index].lat;
+      arr_lng = data[last_index].lng;
+      dept_point = new L.LatLng(dept_lat, dept_lng);
+      arr_point = new L.LatLng(arr_lat, arr_lng);
+      // GET DEPARTURE AND ARRIVAL AIRPORTS - END
+
+      function toRad(deg)
+      {
+        rad = parseFloat(deg) * Math.PI / 180;
+        return rad;
+      }
+
+      function distance(lat1, lng1, lat2, lng2)
+      {
+      var dept_lat_rad = toRad(lat1);
+      var dept_lng_rad = toRad(lng1);
+      var arr_lat_rad = toRad(lat2);
+      var arr_lng_rad = toRad(lng2);
+      var earth_radius = 3963.1;
+      var d = Math.acos(Math.cos(dept_lat_rad)*Math.cos(dept_lng_rad)*Math.cos(arr_lat_rad)*Math.cos(arr_lng_rad) + Math.cos(dept_lat_rad)*Math.sin(dept_lng_rad)*Math.cos(arr_lat_rad)*Math.sin(arr_lng_rad) + Math.sin(dept_lat_rad)*Math.sin(arr_lat_rad)) * earth_radius;
+      return Math.round(d);
+      }
+
+      var sum_dsp = 0;
+      var cnt_points = 0;
+      var sum_alt = 0;
+      
+
+      if (waypoint_data_available == false) // This will consider shortest path
+      {
+        // CREATE AND DRAW THE SHORTEST PATH - BEGIN
+        itinerary = [dept_point, arr_point];
+        var polyline = new L.Polyline(itinerary, {color: 'blue', weight: 4, opacity: 0.2, smoothFactor: 1 });
+        polyline.addTo(map);
+        polyline.bindPopup("From <b>"+ dept_aprt + "</b> to <b>"+arr_aprt+"</b>.<br>");
+        // CREATE AND DRAW THE SHORTEST PATH - END
+
+        // DRAW EACH POINT IN THE ACTUAL ROUTE - BEGIN
+        var prev_lat = 0;
+        var prev_lng = 0;
+        var sum_distance = 0;
+        data.forEach(function(d)
+        {
+          point_time = d.point_time;
+          point_lat = d.lat;
+          point_lng = d.lng;
+          point_alt = d.alt;
+          curr_distance = 0;
+
+          if (prev_lat != 0 && prev_lng != 0)
+          {
+            curr_distance = distance(prev_lat,prev_lng,point_lat,point_lng);
+          }
+    
+          // DSP COMPUTATION - BEGIN
+          dsp_comp_up_1 = Math.abs(arr_lng - dept_lng) * Math.abs(dept_lat - point_lat);
+          dsp_comp_up_2 = Math.abs(dept_lng - point_lng) * Math.abs(arr_lat - dept_lat);
+          dsp_comp_down_1 = (arr_lng - dept_lng) * (arr_lng - dept_lng);
+          dsp_comp_down_2 = (arr_lat - dept_lat) * (arr_lat - dept_lat);
+          dsp = Math.abs(dsp_comp_up_1 - dsp_comp_up_2) / Math.sqrt(Math.abs(dsp_comp_down_1 + dsp_comp_down_2));
+          //console.log(dsp);
+          // DSP COMPUTATION - END
+
+          radius = parseInt((dsp * 150000)); // point radius is a function of DSP -- farther from shortest path, bigger.
+    
+          circle = L.circle([d.lat, d.lng], 12000, { fillColor: '#740000', fillOpacity: 1, stroke: false}).addTo(map);
+          circle.bindPopup("<b>Time Point</b>: "+d.point_time+"<br><b>DSP: </b>"+(Math.round(dsp * 100) / 100));
+          sum_dsp += dsp; // sum of DSPs
+          cnt_points += 1; // count drawn points
+          sum_alt += parseInt(point_alt); // sum of altitudes
+          sum_distance += curr_distance;
+          prev_lng = point_lng;
+          prev_lat = point_lat;
+
+        });
+        // DRAW EACH POINT IN THE ACTUAL ROUTE - END
+        
+        // COMPUTE VOLATILITY INDEX - BEGIN
+        volx = sum_dsp / cnt_points;
+        //volx = Math.round(volx * 10000) / 10;
+        avg_alt = sum_alt / cnt_points;
+        //avg_alt = Math.round(avg_alt * 100) / 100;
+        volax = volx * (avg_alt / 999);
+        //volax = Math.round(volax * 10000) / 10000;
+        // COMPUTE VOLATILITY INDEX - END
+
+        // SHOW DEPARTURE AND ARRIVAL POINTS - BEGIN
+        var dept = L.circle([dept_lat, dept_lng], 40000, { fillColor: 'rgb(0,255,100)', fillOpacity: 1, stroke: false}).addTo(map);
+        var arr = L.circle([arr_lat, arr_lng], 40000, { fillColor: 'rgb(255,0,0)', fillOpacity: 1, stroke: false}).addTo(map);
+        url_prev = "/prev?flight_id="+flight_id+"&dept_aprt="+dept_aprt+"&arr_aprt="+arr_aprt+"&before_date="+dept_date;
+        url_next = "/next?flight_id="+flight_id+"&dept_aprt="+dept_aprt+"&arr_aprt="+arr_aprt+"&after_date="+dept_date;
+        popup_text = "<b>Date: </b>"+humanDate(dept_date)+"<br>";
+        popup_text += "<b>Volatility Index: </b> "+(Math.round(volx*100)/100)+"<br>";
+        popup_text += "<b>Volatility Index (Altitude-dependent): </b> "+(Math.round(volax*100)/100)+" <br>";
+        popup_text += "<b>Average Altitude:</b> "+avg_alt+"  of 999<br>";
+        popup_text += "<b>Great Circle Distance:</b> "+ (Math.round(distance(dept_lat,dept_lng,arr_lat,arr_lng) * 100)/100) +" miles<br>";
+        popup_text += "<b>Actual Distance:</b> "+sum_distance+" miles";
+        dept.bindPopup("Here is <b>"+ dept_aprt + "</b> going to <b>"+arr_aprt+"</b>.<br>"+popup_text);
+        arr.bindPopup("Here is <b>"+ arr_aprt + "</b> coming from <b>" +dept_aprt + "</b>.<br>"+popup_text);
+        // SHOW DEPARTURE AND ARRIVAL POINTS - END
+        
+        // SHOW VOLATILITY INDEX ON TOP OF THE MAP - BEGIN
+        var legend = L.control({position: 'bottomleft'});
+        legend.onAdd = function (map)
+        {
+          this._div = L.DomUtil.create('div', 'legend');
+          this.update();
+          return this._div;
+        };
+        legend.update = function (props)
+        {
+          var vvx = Math.round(volax * 10000) / 10000;
+          this._div.innerHTML = "<p style='text-shadow: 0 0 0.2em #ffcc33'><b>Volatility Index (No Route Data)</b> <a href='"+url_prev+"'>&#9664;</a> <a href='"+url_next+"'>&#9654;</a></p><p style='text-shadow: 0 0 0.2em #ffcc33, 0 0 0.2em #ffcc33, 0 0 0.2em #ffcc33; font-size: 60px;'><b>"+vvx+"</b><br></p>";
+        };
+        legend.addTo(map);
+        // SHOW VOLATILITY INDEX ON TOP OF THE MAP - END
+
+      }
+      else // where waypoints are available
+      {
+        d3.csv("waypoints.csv", function(waypoints) // this file contains waypoints and their lat/longs
+        {
+          var w = []; // stores waypoint lat/longs
+          prev_waypoint_lat = 0;
+          prev_waypoint_lng = 0;
+          route_distance = 0;
+          var waypoint_lat = 0;
+          var waypoint_lng = 0;
+          w.push(dept_point);
+          waypoints.forEach(function(waypoint)
+            {
+              waypoint_lat = waypoint.lat/3600;
+              waypoint_lng = waypoint.lng/3600;
+              wpoint = new L.LatLng(waypoint_lat, waypoint_lng);
+              if (prev_waypoint_lat != 0 && prev_waypoint_lng != 0)
+              {
+                route_distance += distance(prev_waypoint_lat, prev_waypoint_lng, waypoint_lat, waypoint_lng);
+              }
+              else
+              {
+                route_distance += distance(dept_lat,dept_lng,waypoint_lat, waypoint_lng);
+              }
+              // DRAW WAYPOINTS - BEGIN
+              var wpointcircle = L.circle(wpoint, 25000, { fillColor: 'rgb(0,0,250)', fillOpacity: 0.6, stroke: false}).addTo(map);
+              wpointcircle.bindPopup("<b>"+waypoint.waypoint+"</b> waypoint")
+              // DRAW WAYPOINTS - END
+              w.push(wpoint);
+              prev_waypoint_lat = waypoint_lat;
+              prev_waypoint_lng = waypoint_lng;
+            });
+          route_distance += distance(waypoint_lat, waypoint_lng,arr_lat,arr_lng);
+          w.push(arr_point);
+          var polyline = new L.Polyline(w, {color: 'blue', weight: 4, opacity: 0.2, smoothFactor: 1 });
+          polyline.addTo(map);
+
+          var sum_dsp = 0;
+          var cnt_points = 0;
+          var sum_alt = 0;
+          var sum_distance = 0;
+          var prev_lat = 0;
+          var prev_lng = 0;
+
+          data.forEach(function(d)
+          {
+            point_time = d.point_time;
+            point_lat = d.lat;
+            point_lng = d.lng;
+            point_alt = d.alt;
+            curr_distance = 0;
+
+            if (prev_lat != 0 && prev_lng != 0)
+            {
+              curr_distance = distance(prev_lat,prev_lng,point_lat,point_lng);
+            }
+
+            // COMPUTE DSP - BEGIN
+            min_dsp = 1000;
+            for (i=0; i<w.length-1; i++)
+            {
+              begin_lat = w[i].lat;
+              begin_lng = w[i].lng;
+              end_lat = w[i+1].lat;
+              end_lng = w[i+1].lng;
+              dsp_comp_up_1 = Math.abs(end_lng - begin_lng) * Math.abs(begin_lat - point_lat);
+              dsp_comp_up_2 = Math.abs(begin_lng - point_lng) * Math.abs(end_lat - begin_lat);
+              dsp_comp_down_1 = (end_lng - begin_lng) * (end_lng - begin_lng);
+              dsp_comp_down_2 = (end_lat - begin_lat) * (end_lat - begin_lat);
+              dsp = Math.abs(dsp_comp_up_1 - dsp_comp_up_2) / Math.sqrt(Math.abs(dsp_comp_down_1 + dsp_comp_down_2));
+              if (dsp < min_dsp)
+              {
+                min_dsp = dsp;
+              }
+            }
+            // COMPUTE DSP - END
+            radius = parseInt((min_dsp * 150000));
+            // DRAW POINT - BEGIN
+            circle = L.circle([d.lat, d.lng], 12000, { fillColor: '#740000', fillOpacity: 1, stroke: false}).addTo(map);
+            circle.bindPopup("<b>Time Point</b>: "+d.point_time+"<br><b>DSP: </b>"+(Math.round(min_dsp * 100) / 100));
+            // DRAW POINT - END
+            sum_dsp += min_dsp;
+            cnt_points += 1;
+            sum_alt += parseInt(point_alt);
+            sum_distance += curr_distance;
+            prev_lng = point_lng;
+            prev_lat = point_lat;
+          });
+
+          // COMPUTE VOLATILITY INDEX - BEGIN
+          volx = sum_dsp / cnt_points;
+          //volx = Math.round(volx * 10000) / 10;
+          avg_alt = sum_alt / cnt_points;
+          //avg_alt = Math.round(avg_alt * 100) / 100;
+          volax = volx * (avg_alt / 999);
+          //volax = Math.round(volax * 10000) / 10000;
+          // COMPUTE VOLATILITY INDEX - BEGIN  
+
+          // SHOW DEPARTURE AND ARRIVAL POINTS - BEGIN
+          var dept = L.circle([dept_lat, dept_lng], 40000, { fillColor: 'rgb(0,255,100)', fillOpacity: 1, stroke: false}).addTo(map);
+          var arr = L.circle([arr_lat, arr_lng], 40000, { fillColor: 'rgb(255,0,0)', fillOpacity: 1, stroke: false}).addTo(map);
+ 
+          url_next = "/next?dept_aprt="+dept_aprt+"&arr_aprt="+arr_aprt+"after_date="+dept_date+"&after_date="+dept_date;
+          popup_text = "<b>Date: </b>"+humanDate(dept_date);
+          popup_text += " -- <a href='"+url_next+"' target=_blank>Show Next</a><br>"
+          popup_text += "<b>Volatility Index: </b> "+volx+"<br>";
+          popup_text += "<b>Volatility Index (Altitude-dependent): </b> "+volax+" <br>";
+          popup_text += "<b>Average Altitude:</b> "+avg_alt+"  of 999<br>";
+          popup_text += "<b>Great Circle Distance:</b> "+distance(dept_lat,dept_lng,arr_lat,arr_lng)+" miles<br>";
+          popup_text += "<b>Route Distance:</b> "+route_distance+" miles<br>";
+          popup_text += "<b>Actual Distance:</b> "+sum_distance+" miles";
+          
+          dept.bindPopup("Here is <b>"+ dept_aprt + "</b> going to <b>"+arr_aprt+"</b>.<br>"+popup_text);
+          arr.bindPopup("Here is <b>"+ arr_aprt + "</b> coming from <b>" +dept_aprt + "</b>.<br>"+popup_text);
+          // SHOW DEPARTURE AND ARRIVAL POINTS - END
+
+          // SHOW VOLATILITY INDEX ON TOP OF THE MAP - BEGIN
+          var legend = L.control({position: 'bottomleft'});
+          legend.onAdd = function (map)
+          {
+            this._div = L.DomUtil.create('div', 'legend');
+            this.update();
+            return this._div;
+          };
+          legend.update = function (props)
+          {
+            var vvx = Math.round(volax * 10000) / 10000;
+            this._div.innerHTML = "<p style='text-shadow: 0 0 0.2em #ffcc33'><b>Volatility Index</b></p><p style='text-shadow: 0 0 0.2em #ffcc33, 0 0 0.2em #ffcc33, 0 0 0.2em #ffcc33; font-size: 60px;'><b>"+vvx+"</b></p>";
+          };
+          legend.addTo(map);
+        });
+      }
+    });
+    </script>
+  </body>
+</html>

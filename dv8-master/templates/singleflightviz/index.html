@@ -1,0 +1,704 @@
+<html>
+  <head>
+    <meta charset=utf-8 />
+    <title>Single Flight Visualizer</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.mapbox.com/mapbox.js/v2.2.3/mapbox.js'></script>
+    <script src="{{ static_url('js/d3.v3.min.js') }}" charset="utf-8"></script>
+    <script src='//unpkg.com/leaflet-arc/bin/leaflet-arc.min.js'></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link href='https://api.mapbox.com/mapbox.js/v2.2.3/mapbox.css' rel='stylesheet' />
+
+    <script type="text/javascript" src="{{ static_url('src/waypoints.js') }}"></script>
+
+	
+	<link rel="stylesheet" type="text/css" href="{{ static_url('bootstrap/css/bootstrap.min.css') }}">
+    <style>
+	
+		html,body
+		{
+		width: 100%;
+		height: 100%;
+		margin: 0px;
+		padding: 0px;
+		overflow-x: hidden; 
+		overflow-y: hidden;
+		}
+	
+      
+      #map {  height:100%; width:100%; border-style: solid;}
+
+      #color_coding {
+        position: absolute;
+        top: 5%;
+        left: 5%;
+      }
+	  
+	  .info {
+		padding: 6px 8px;
+		font: 14px/16px Arial, Helvetica, sans-serif;
+		background: white;
+		background: rgba(255,255,255,0.8);
+		box-shadow: 0 0 15px rgba(0,0,0,0.2);
+		border-radius: 5px;
+		}
+		
+	  .leaflet-top {
+		width: 17%;
+	  }
+    </style>
+  </head>
+  <body>
+    <div id='map'></div>
+
+    <div id="color_coding" class="dropdown" style="display:inline">
+      <button class="btn btn-warning dropdown-toggle" type="button" data-toggle="dropdown">Color Coding <span class='caret'></span></button>
+      <ul class="dropdown-menu">
+        <li><a onclick="javascript:color_scheme=0; draw_map();">Alt</a></li>
+        <li><a onclick="javascript:color_scheme=1; draw_map();">Speed</a></li>
+        <li><a onclick="javascript:color_scheme=2; draw_map();">Alt Diff (Thousand Feet)</a></li>
+        <li><a onclick="javascript:color_scheme=3; draw_map();">Alt Diff (Hundred Feet)</a></li>
+      </ul>
+    </div>
+  </body>
+  
+  <!-- GLOBAL VARS -->
+  <script>
+  console.log('--2');
+  //for weather crawler
+  var dept_time, arr_time, dept_aprt, arr_aprt, dept_date, arr_date, flight_id;
+  var b_arr_dept = false;
+  var is_next = false; is_prev = false;
+  </script>
+  
+  <!-- talk with websockets -->
+  <script>
+  
+  function get_weather(d_aprt, d_date, d_time, a_aprt, a_date, a_time){
+		var ws = new WebSocket("ws://localhost:8888/websocket");
+		ws.onopen = function (e) {
+			//comma separated string of data
+			var data_string = 'weath,' + flight_id + "," + d_aprt.trim() + ',' + d_date + ',' + d_time.substring(0,5) +',' + a_aprt.trim() + ',' + a_date + ',' + a_time.substring(0,5);
+			ws.send(data_string);
+		}
+		ws.onmessage = function(message){
+			console.log(message);
+			create_weather_info(b_arr_dept, message.data);
+			b_arr_dept = !b_arr_dept;
+		}
+		ws.onclose = function () {
+			console.log('web socket closed');
+		}
+	}
+  
+  </script>
+  
+  <!-- create weather info boxes -->
+  <script>
+	function create_weather_info(b_arrdept, data){
+		var info = L.control();
+		info.onAdd = function (map){
+			arr_dept = 'departure';
+			arr_dept_aprt = dept_aprt;
+			if (b_arrdept){
+				arr_dept = 'arrvial';
+				arr_dept_aprt = arr_aprt;
+			}
+		
+			this._div = L.DomUtil.create('div', 'info');
+			
+			var header_html = '<pstlye="width:10%"><b>Weather at ' + arr_dept + ' (' + arr_dept_aprt.trim() + ')</b></p>';
+			
+			var data_text = "<p>" + data + "</p>";
+
+			
+			this._div.innerHTML = header_html + data_text;
+			return this._div;
+		};
+	
+		info.addTo(map);
+	}
+	function hide_this(t){
+		t.style.display = 'none';
+	}
+  </script>
+  
+  
+  <!-- Helper Functions -->
+  <script>
+	function toRad(deg)
+    {
+        rad = parseFloat(deg) * Math.PI / 180;
+        return rad;
+    }
+
+    function distance(lat1, lng1, lat2, lng2)
+    {
+      var dept_lat_rad = toRad(lat1);
+      var dept_lng_rad = toRad(lng1);
+      var arr_lat_rad = toRad(lat2);
+      var arr_lng_rad = toRad(lng2);
+      var earth_radius = 3440;
+      var d = Math.acos(Math.cos(dept_lat_rad)*Math.cos(dept_lng_rad)*Math.cos(arr_lat_rad)*Math.cos(arr_lng_rad) + Math.cos(dept_lat_rad)*Math.sin(dept_lng_rad)*Math.cos(arr_lat_rad)*Math.sin(arr_lng_rad) + Math.sin(dept_lat_rad)*Math.sin(arr_lat_rad)) * earth_radius;
+      return Math.round(d);
+    }
+
+    function downloadCSV(){
+        window.location.href="static/singleflightviz/data.csv";
+    }
+
+    function range_hexcolor(natural, isBlue){
+        if (natural > 1){
+            natural = 1;
+        }else if (natural<0){
+            natural = 0;
+        }
+
+        //get circle color
+        var hexColor = "";
+        var color_string = "";
+        var whiteness = -1;
+        if (natural < .5){
+            whiteness = Math.round( (255 * natural) / 0.5);
+        }
+        else{
+            whiteness = Math.round(255 - (((natural - 0.5) * 255) / 0.5));
+        }
+
+        //calculate how close to white
+        if (whiteness == 0){
+            color_string = "00"
+        }
+        if (whiteness < 16){
+            color_string = "0" + whiteness.toString(16);
+        }
+        else{
+            color_string = whiteness.toString(16);
+        }
+
+        if (natural < .5){
+            hexColor = "#FF" + color_string + color_string;
+        }
+        else if(isBlue){
+            hexColor = "#" + color_string + color_string + "FF";
+        }
+        else{
+            hexColor = "#" + color_string + "08FF";
+        }
+        return hexColor;
+    }
+
+
+
+  </script>
+  
+  <!-- draw map -->
+  <script>
+
+    // MAP INITIALIZATION
+    L.mapbox.accessToken = 'pk.eyJ1IjoiYmVocm9vem9taWR2YXIiLCJhIjoiY2lpOTJneGpyMDAyNXZ1a29kZWN0cXk2ZiJ9.zGrpksooywrH3DjawX9u5w';
+    var mapboxTiles = L.tileLayer('https://api.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + L.mapbox.accessToken,
+        {
+            attribution: '<a href="https://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+        });
+    var layer = L.FeatureGroup();
+    var map = L.map('map').addLayer(mapboxTiles).setView([39.98912,-83.0068], 4);
+    var circle;
+    var color_scheme = 0;
+    var layerP = L.layerGroup();
+
+    // ### CONFIG ###
+    var waypoint_data_available = false; // It is true if route data is available, false otherwise
+    var info_shown = true;
+    var zoomed = true;
+    // ### CONFIG ###
+
+    draw_map();
+
+
+    function humanDate(d) {
+      return d.substring(4, 6)+"/"+d.substring(6, 8)+"/"+d.substring(0, 4);
+    }
+
+
+    function draw_map() {
+
+        var circle;
+
+        map.removeLayer(layerP);
+        layerP.clearLayers();
+
+        d3.csv("{{ static_url('singleflightviz/data.csv') }}", function (data) // The main data of points will be loaded here.
+        {
+            d3.csv("{{ static_url('cache/' + cache_path + '/flight_list.csv') }}", function (flights) {
+                //Variables from data.csv
+                flight_id = data[0].flight_id;
+                var last_index = parseInt(data.length) - 1;
+                dept_time = data[last_index].point_time;
+                dept_lat = data[0].lat;
+                dept_lng = data[0].lng;
+                arr_time = data[0].point_time;
+                arr_lat = data[last_index].lat;
+                arr_lng = data[last_index].lng;
+                dept_point = new L.LatLng(dept_lat, dept_lng);
+                arr_point = new L.LatLng(arr_lat, arr_lng);
+
+                //Variables from flight_list.csv that aren't global
+                var airline, prev_fid, next_fid;
+
+                //START USING FLIGHTS DATA
+                var last_i = parseInt(flights.length) - 1;
+                //FIND CURRENT POSITION START
+                var fid_int = parseInt(flight_id);
+
+                /**THIS log(n) algorithm no longer works as order is no longer gauranteed in flight_list
+                 left = 0;
+                 right = last_i;
+                 pos = Math.floor((left+right)/2);
+                 current_fid = parseInt(flights[pos].flight_id);
+
+                 while (current_fid != fid_int && parseInt(flights[right].flight_id) != fid_int){
+			if (current_fid < fid_int){
+				left = pos;
+			}
+			else{
+				right = pos;	
+			}	
+			pos = Math.floor((left+right)/2);			
+			current_fid = parseInt(flights[pos].flight_id);
+		}
+                 if (current_fid != fid_int){ pos = right;}
+                 **/
+                pos = 0;
+                while (flights[pos].flight_id != flight_id) {
+                    pos++;
+                }
+
+                //FIND CURRENT POSITION END
+
+                currFlight = flights[pos];
+                dept_aprt = currFlight.dept_aprt;
+                dept_date = currFlight.dept_date_utc;
+                arr_aprt = currFlight.arr_aprt;
+                arr_date = currFlight.arr_date_utc;
+                airline = currFlight.icao;
+                var aircraft = currFlight.acft_type;
+                next_fid = "";
+                prev_fid = "";
+                if (pos < last_i) {
+                    next_fid = parseInt(flights[pos + 1].flight_id);
+                    is_next = true;
+                }
+                if (pos > 0) {
+                    prev_fid = parseInt(flights[pos - 1].flight_id);
+                    is_prev = true;
+                }
+                //STOP USING FLIGHTS DATA
+
+
+                var sum_dsp = 0;
+                var cnt_points = 0;
+                var sum_alt = 0;
+
+                if (waypoint_data_available == false) // This will consider shortest path
+                {
+                    // CREATE AND DRAW THE SHORTEST PATH - BEGIN
+                    var short_path = L.Polyline.Arc([dept_lat, dept_lng], [arr_lat, arr_lng], {
+                        color: 'black',
+                        opacity: 0.3,
+                        weight: 3
+                    });
+                    layerP.addLayer(short_path);
+                    // CREATE AND DRAW THE SHORTEST PATH - END
+
+                    // DRAW PLAN ROUTE
+                    route_name = dept_aprt.substring(0, 3) + "_" + arr_aprt.substring(0, 3);
+                    if(waypoints.has(route_name)){
+                        route = waypoints.get(route_name);
+                        var route_polyline = L.polyline(route, {
+                            color: 'green',
+                            opacity: 0.5,
+                            weight: 5
+                        }).addTo(layerP);
+                        map.fitBounds(route_polyline.getBounds());
+                    }
+
+
+                    // DRAW EACH POINT IN THE ACTUAL ROUTE - BEGIN
+                    var prev_lat = 0;
+                    var prev_lng = 0;
+                    var sum_distance = 0;
+
+                    var max_alt = -1, min_lat = 1000, min_lng = 1000, max_lat = -1000, max_lng = -1000, min_speed = 9999, max_speed = -1, avg_speed = 0;
+
+                    //FIND PRELIM DATA - BEGIN
+                    data.forEach(function (d) {
+                        if (parseInt(d.alt) > max_alt) {
+                            max_alt = d.alt;
+                        }
+                        if (parseInt(d.lat) > max_lat) {
+                            max_lat = d.lat;
+                        }
+                        if (parseInt(d.lng) > max_lng) {
+                            max_lng = d.lng;
+                        }
+                        if (parseInt(d.lng) < min_lng) {
+                            min_lng = d.lng;
+                        }
+                        if (parseInt(d.lat) < min_lat) {
+                            min_lat = d.lat;
+                        }
+                        if (parseInt(d.ground) > max_speed) {
+                            max_speed = d.ground;
+                        }
+                        if (parseInt(d.ground) < min_speed) {
+                            min_speed = d.ground;
+                        }
+                        avg_speed += parseInt(d.ground);
+                    });
+                    avg_speed /= last_index;
+                    //FIND PRELIM DATA - END
+
+                    //FIT ZOOM
+                    if(zoomed) {
+                        map.fitBounds([[min_lat, min_lng], [max_lat, max_lng]]);
+                        map.zoomOut();
+                        zoomed = false;
+                    }
+
+
+                    var last_fid = -1;
+                    var last_hour = -17; //impossiblely small
+                    var breakPoint = 0;
+                    var pointList = [-1, -1];
+                    var hexColor = "";
+                    var last_alt = 0;
+                    data.forEach(function (d) {
+                        point_time = d.point_time;
+                        point_lat = d.lat;
+                        point_lng = d.lng;
+                        point_alt = d.alt;
+                        curr_distance = 0;
+                        var speed = d.ground;
+
+
+                        if (prev_lat != 0 && prev_lng != 0) {
+                            curr_distance = distance(prev_lat, prev_lng, point_lat, point_lng);
+                        }
+
+                        // DSP COMPUTATION - BEGIN
+                        dsp_comp_up_1 = Math.abs(arr_lng - dept_lng) * Math.abs(dept_lat - point_lat);
+                        dsp_comp_up_2 = Math.abs(dept_lng - point_lng) * Math.abs(arr_lat - dept_lat);
+                        dsp_comp_down_1 = (arr_lng - dept_lng) * (arr_lng - dept_lng);
+                        dsp_comp_down_2 = (arr_lat - dept_lat) * (arr_lat - dept_lat);
+                        dsp = Math.abs(dsp_comp_up_1 - dsp_comp_up_2) / Math.sqrt(Math.abs(dsp_comp_down_1 + dsp_comp_down_2));
+                        // DSP COMPUTATION - END
+
+                        radius = parseInt((dsp * 150000)); // point radius is a function of DSP -- farther from shortest path, bigger.
+
+
+                        //COLOR CIRCLE - BEGIN
+                        var polyline;
+                        var point = new L.LatLng(d.lat, d.lng);
+
+                        if (color_scheme == 0) { hexColor = range_hexcolor(d.alt / max_alt, true); }
+                        else if (color_scheme == 1){ hexColor = range_hexcolor((d.ground-min_speed)/(max_speed-min_speed), false); }
+                        else if (color_scheme == 2){ hexColor = range_hexcolor((1-(Math.abs(d.alt-last_alt))/(20)), false); }
+                        else if (color_scheme == 3){ hexColor = range_hexcolor((1-(Math.abs(d.alt-last_alt))/(2)), false); }
+
+
+                        //COLOR CIRCLE - END
+                        circle = new L.CircleMarker(point, {
+                            radius: 2.5,
+                            color: hexColor,
+                            opacity: 1,
+                            stroke: false
+                        }).addTo(layerP);
+
+
+
+                        //EVERY MARKER POINT
+                        var popup_text = "";
+                        popup_text += "<b>Time Point</b>: " + d.point_time;
+                        popup_text += "<br><b>Altitude</b>: " + point_alt / 10 + " Thousand Feet";
+                        popup_text += "<br><b>Speed</b>: " + speed + " Knots";
+                        popup_text += "<br><b>Latitude</b>: " + point_lat;
+                        popup_text += "<br><b>Longitude</b>: " + point_lng;
+                        popup_text += "<br><b>DSP</b>: " + Math.round(dsp * 100) / 100;
+
+                        circle.bindPopup(popup_text);
+
+                        pointList[0] = pointList[1];
+                        pointList[1] = point;
+                        var intHour = parseInt(d.point_time.substring(0, 2));
+                        if (last_hour + 12 > intHour) {
+                            polyline = new L.Polyline(pointList, {
+                                color: hexColor,
+                                clickable: false,
+                                weight: 3,
+                                opacity: 0.5,
+                                smoothFactor: 1
+                            }).addTo(layerP);
+
+                        }
+                        else if (last_hour > 0) {
+                            breakPoint = pointList[0] //only one of these can exist per 24 hours
+                        }
+                        last_hour = intHour;
+
+
+                        sum_dsp += dsp; // sum of DSPs
+                        cnt_points += 1; // count drawn points
+                        sum_alt += parseInt(point_alt); // sum of altitudes
+                        sum_distance += curr_distance;
+                        prev_lng = point_lng;
+                        prev_lat = point_lat;
+
+                        last_alt = d.alt;
+                    });
+                    if (breakPoint != 0) {
+                        polyline = new L.Polyline([breakPoint, pointList[1]], {
+                            color: hexColor,
+                            weight: 3,
+                            opacity: 0.5,
+                            smoothFactor: 1
+                        }).addTo(layerP);
+                    }
+                    // DRAW EACH POINT IN THE ACTUAL ROUTE - END
+
+
+                    // COMPUTE VOLATILITY INDEX - BEGIN
+                    volx = sum_dsp / cnt_points;
+                    //volx = Math.round(volx * 10000) / 10;
+                    avg_alt = sum_alt / cnt_points;
+                    //avg_alt = Math.round(avg_alt * 100) / 100;
+                    volax = volx * (avg_alt / 999);
+                    //volax = Math.round(volax * 10000) / 10000;
+                    // COMPUTE VOLATILITY INDEX - END
+
+                    url_prev = "/single?flight_id=" + prev_fid + "&cache_path={{cache_path}}";
+                    url_next = "/single?flight_id=" + next_fid + "&cache_path={{cache_path}}";
+
+                    if(info_shown) {
+                        //CREATE INFO BOX - BEGIN
+                        var info = L.control();
+                        info.onAdd = function (map) {
+                            this._div = L.DomUtil.create('div', 'info');
+                            var close_button_html = '<button class="btn btn-danger" style="float:right;" onclick="javascript:window.close();">Close Page</button>'
+
+                            var data_text = "<p>"
+                            data_text += "<b>" + dept_aprt + "</b> to <b>" + arr_aprt + "</b>";
+                            data_text += "<br><b>Date: </b>" + humanDate(dept_date);
+                            data_text += "<br><b>Flight ID: </b>" + flight_id;
+                            data_text += "<br><b>Airline ICAO ID: </b>" + airline;
+                            data_text += "<br><b>Aircraft Type: </b>" + aircraft;
+                            data_text += "<br><b>Volatility Index: </b> " + (Math.round(volx * 100) / 100);
+                            data_text += "<br><b>Volatility Index (Alt): </b> " + (Math.round(volax * 1000) / 1000);
+                            data_text += "<br><b>Max Alt: </b>" + Math.round(max_alt) / 10 + " Thousand Feet";
+                            data_text += "<br><b>Average Alt:</b> " + Math.round(avg_alt) / 10 + " Thousand Feet";
+                            data_text += "<br><b>Average Speed:</b> " + Math.round(avg_speed * 10) / 10.0 + " Knots";
+                            data_text += "<br><b>Actual Distance:</b> " + sum_distance + " Miles";
+                            var gc_distance = Math.round(distance(dept_lat, dept_lng, arr_lat, arr_lng) * 100) / 100;
+                            data_text += "<br><b>Great Circle Distance:</b> " + gc_distance + " Miles";
+                            var deviation = Math.round(((sum_distance - gc_distance) / gc_distance) * 1000) / 10;
+                            data_text += "<br><b>Deviation (Great Circle):</b> " + deviation + "%";
+
+                            //PLAN ROUTE ONLY
+                            if(waypoints.has(route_name)){
+                                var plan_distance = 0;
+                                for(i=1; i<route.length;i++){
+                                    plan_distance += distance(route[i-1][0], route[i-1][1], route[i][0],route[i][1]);
+                                }
+                                data_text += "<br><b>Plan Route Distance:</b> " + plan_distance + " Miles";
+                                data_text += "<br><b>Deviation (Plan Route):</b> " + (Math.round(((sum_distance - plan_distance) / plan_distance) * 1000) / 10) + "%";
+                                data_text += "<br><b>Deviation for Plan to GCD:</b> "+ (Math.round((plan_distance-gc_distance)*1000/gc_distance)/10) + "%";
+                            }
+
+                            var arr_hour = parseInt(arr_time.substring(0, 2));
+                            var dept_hour = parseInt(dept_time.substring(0, 2));
+                            var arr_min = parseInt(arr_time.substring(3, 5));
+                            var dept_min = parseInt(dept_time.substring(3, 5));
+                            if (arr_hour < dept_hour) {
+                                arr_hour = arr_hour + 24;
+                            }
+                            if (arr_min < dept_min) {
+                                arr_min = arr_min + 60;
+                                arr_hour = arr_hour - 1;
+                            }
+                            var flightmin = arr_min - dept_min;
+                            var flighthour = arr_hour - dept_hour;
+                            var flighttime = flighthour + "h" + flightmin + "min";
+                            data_text += "<br><b>Flight Time:</b> " + flighttime + "</p>";
+
+                            var flight_scroller_html = "<p style='text-shadow: 0 0 0.2em #ffcc33; font-size:150%'><b>Flight Scroller:</b> ";
+                            if (is_prev) {
+                                flight_scroller_html += "<a href='" + url_prev + "'>&#9664;</a> ";
+                            }
+                            else {
+                                flight_scroller_html += "&#9664; "
+                            }
+                            if (is_next) {
+                                flight_scroller_html += "<a href='" + url_next + "'>&#9654;</a></p>";
+                            }
+                            else {
+                                flight_scroller_html += "&#9654;</p>"
+                            }
+
+                            //var weather_button_html = '<button id="button_weather" class="btn btn-primary" style="float:right;" onclick="get_weather(dept_aprt, dept_date, dept_time, arr_aprt, arr_date, arr_time); hide_this(this);">Get Weather Data</button>'
+                            var csv_button_html = '<button class="btn btn-primary" style="margin-top: 4px; float:right;"  onclick="javascript:downloadCSV();">Get Points CSV</button>'
+
+                            this._div.innerHTML = close_button_html + data_text + flight_scroller_html + csv_button_html;
+                            return this._div;
+                        };
+                        info.addTo(map);
+                        //CREATE INFO BOX - END
+                    }
+                    info_shown = false;
+                }
+
+                else // where waypoints are available
+                {
+                    d3.csv("waypoints.csv", function (waypoints) // this file contains waypoints and their lat/longs
+                    {
+                        var w = []; // stores waypoint lat/longs
+                        prev_waypoint_lat = 0;
+                        prev_waypoint_lng = 0;
+                        route_distance = 0;
+                        var waypoint_lat = 0;
+                        var waypoint_lng = 0;
+                        w.push(dept_point);
+                        waypoints.forEach(function (waypoint) {
+                            waypoint_lat = waypoint.lat / 3600;
+                            waypoint_lng = waypoint.lng / 3600;
+                            wpoint = new L.LatLng(waypoint_lat, waypoint_lng);
+                            if (prev_waypoint_lat != 0 && prev_waypoint_lng != 0) {
+                                route_distance += distance(prev_waypoint_lat, prev_waypoint_lng, waypoint_lat, waypoint_lng);
+                            }
+                            else {
+                                route_distance += distance(dept_lat, dept_lng, waypoint_lat, waypoint_lng);
+                            }
+                            // DRAW WAYPOINTS - BEGIN
+                            var wpointcircle = L.circleMarker(wpoint, {radius: 10}, {
+                                fillColor: 'rgb(0,0,250)',
+                                fillOpacity: 0.6,
+                                stroke: false
+                            }).addTo(layerP);
+                            wpointcircle.bindPopup("<b>" + waypoint.waypoint + "</b> waypoint")
+                            // DRAW WAYPOINTS - END
+                            w.push(wpoint);
+                            prev_waypoint_lat = waypoint_lat;
+                            prev_waypoint_lng = waypoint_lng;
+                        });
+                        route_distance += distance(waypoint_lat, waypoint_lng, arr_lat, arr_lng);
+                        w.push(arr_point);
+                        var polyline = new L.Polyline(w, {color: 'blue', weight: 4, opacity: 0.2, smoothFactor: 1});
+                        polyline.addTo(layerP);
+
+                        var sum_dsp = 0;
+                        var cnt_points = 0;
+                        var sum_alt = 0;
+                        var sum_distance = 0;
+                        var prev_lat = 0;
+                        var prev_lng = 0;
+
+                        data.forEach(function (d) {
+                            point_time = d.point_time;
+                            point_lat = d.lat;
+                            point_lng = d.lng;
+                            point_alt = d.alt;
+                            curr_distance = 0;
+
+                            if (prev_lat != 0 && prev_lng != 0) {
+                                curr_distance = distance(prev_lat, prev_lng, point_lat, point_lng);
+                            }
+
+                            // COMPUTE DSP - BEGIN
+                            min_dsp = 1000;
+                            for (i = 0; i < w.length - 1; i++) {
+                                begin_lat = w[i].lat;
+                                begin_lng = w[i].lng;
+                                end_lat = w[i + 1].lat;
+                                end_lng = w[i + 1].lng;
+                                dsp_comp_up_1 = Math.abs(end_lng - begin_lng) * Math.abs(begin_lat - point_lat);
+                                dsp_comp_up_2 = Math.abs(begin_lng - point_lng) * Math.abs(end_lat - begin_lat);
+                                dsp_comp_down_1 = (end_lng - begin_lng) * (end_lng - begin_lng);
+                                dsp_comp_down_2 = (end_lat - begin_lat) * (end_lat - begin_lat);
+                                dsp = Math.abs(dsp_comp_up_1 - dsp_comp_up_2) / Math.sqrt(Math.abs(dsp_comp_down_1 + dsp_comp_down_2));
+                                if (dsp < min_dsp) {
+                                    min_dsp = dsp;
+                                }
+                            }
+                            // COMPUTE DSP - END
+                            radius = parseInt((min_dsp * 150000));
+                            // DRAW POINT - BEGIN
+                            circle = L.circleMarker([d.lat, d.lng], {radius: 5}, {
+                                fillColor: '#740000',
+                                fillOpacity: 1,
+                                stroke: false
+                            }).addTo(layerP);
+                            circle.bindPopup("<b>Time Point</b>: " + d.point_time + "<br><b>DSP: </b>" + (Math.round(min_dsp * 100) / 100));
+                            // DRAW POINT - END
+                            sum_dsp += min_dsp;
+                            cnt_points += 1;
+                            sum_alt += parseInt(point_alt);
+                            sum_distance += curr_distance;
+                            prev_lng = point_lng;
+                            prev_lat = point_lat;
+                        });
+
+                        // COMPUTE VOLATILITY INDEX - BEGIN
+                        volx = sum_dsp / cnt_points;
+                        //volx = Math.round(volx * 10000) / 10;
+                        avg_alt = sum_alt / cnt_points;
+                        //avg_alt = Math.round(avg_alt * 100) / 100;
+                        volax = volx * (avg_alt / 999);
+                        //volax = Math.round(volax * 10000) / 10000;
+                        // COMPUTE VOLATILITY INDEX - BEGIN
+
+                        // SHOW DEPARTURE AND ARRIVAL POINTS - BEGIN
+                        var dept = L.circleMarker([dept_lat, dept_lng], {radius: 20}, {
+                            fillColor: 'rgb(0,255,100)',
+                            fillOpacity: 1,
+                            stroke: false
+                        }).addTo(layerP);
+                        var arr = L.circleMarker([arr_lat, arr_lng], {radius: 20}, {
+                            fillColor: 'rgb(255,0,0)',
+                            fillOpacity: 1,
+                            stroke: false
+                        }).addTo(layerP);
+
+                        url_next = "/next?dept_aprt=" + dept_aprt + "&arr_aprt=" + arr_aprt + "after_date=" + dept_date + "&after_date=" + dept_date;
+                        popup_text = "<b>Date: </b>" + humanDate(dept_date);
+                        popup_text += " -- <a href='" + url_next + "' target=_blank>Show Next</a><br>"
+                        popup_text += "<b>Volatility Index: </b> " + volx + "<br>";
+                        popup_text += "<b>Volatility Index (Altitude-dependent): </b> " + volax + " <br>";
+                        popup_text += "<b>Average Altitude:</b> " + avg_alt + "  of 999<br>";
+                        popup_text += "<b>Great Circle Distance:</b> " + distance(dept_lat, dept_lng, arr_lat, arr_lng) + " miles<br>";
+                        popup_text += "<b>Route Distance:</b> " + route_distance + " miles<br>";
+                        popup_text += "<b>Actual Distance:</b> " + sum_distance + " miles";
+
+                        dept.bindPopup("Here is <b>" + dept_aprt + "</b> going to <b>" + arr_aprt + "</b>.<br>" + popup_text);
+                        arr.bindPopup("Here is <b>" + arr_aprt + "</b> coming from <b>" + dept_aprt + "</b>.<br>" + popup_text);
+                        // SHOW DEPARTURE AND ARRIVAL POINTS - END
+
+                        // SHOW VOLATILITY INDEX ON TOP OF THE MAP - BEGIN
+                        var legend = L.control({position: 'bottomleft'});
+                        legend.onAdd = function (map) {
+                            this._div = L.DomUtil.create('div', 'legend');
+                            this.update();
+                            return this._div;
+                        };
+                        legend.update = function (props) {
+                            var vvx = Math.round(volax * 10000) / 10000;
+                            this._div.innerHTML = "<p style='text-shadow: 0 0 0.2em #ffcc33'><b>Volatility Index</b></p><p style='text-shadow: 0 0 0.2em #ffcc33, 0 0 0.2em #ffcc33, 0 0 0.2em #ffcc33; font-size: 60px;'><b>" + vvx + "</b></p>";
+                        };
+                        legend.addTo(map);
+                    });
+                }
+            });
+        });
+        map.addLayer(layerP);
+    }
+    </script>
+</html>
